@@ -40,7 +40,7 @@ You can configure the MCP server using command line arguments and environment va
 
 Add the following to your `claude_desktop_config.json`:
 
-Option 1 with `stdio` transport:
+#### Option 1 with `stdio` transport:
 ```json
 {
   "mcpServers": {
@@ -51,16 +51,34 @@ Option 1 with `stdio` transport:
         "-i",
         "--rm",
         "-e",
-        "SLACK_XOXC_TOKEN",
+        "SLACK_MCP_XOXC_TOKEN",
         "-e",
-        "SLACK_XOXD_TOKEN",
+        "SLACK_MCP_XOXD_TOKEN",
         "slack-mcp-server",
         "--transport",
         "stdio"
       ],
       "env": {
-        "SLACK_XOXC_TOKEN": "xoxc-...",
-        "SLACK_XOXD_TOKEN": "xoxd-..."
+        "SLACK_MCP_XOXC_TOKEN": "xoxc-...",
+        "SLACK_MCP_XOXD_TOKEN": "xoxd-..."
+      }
+    }
+  }
+}
+```
+
+#### Option 2 with `sse` transport:
+
+Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or with your preferred method and then configure it:
+
+```json
+{
+  "mcpServers": {
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://x.y.z.q:3001"],
+      "env": {
+        "SLACK_SSE_API_KEY": "my-$$e-$ecret"
       }
     }
   }
@@ -75,14 +93,16 @@ Option 1 with `stdio` transport:
 
 #### Environment Variables
 
-| Variable                 | Required ? | Default     | Description                                                                   |
-|--------------------------|------------|-------------|-------------------------------------------------------------------------------|
-| `SLACK_XOXC_TOKEN`       | Yes        | `nil`       | Authentication data token field `token` from POST data field-set (`xoxc-...`) |
-| `SLACK_XOXD_TOKEN`       | Yes        | `nil`       | Authentication data token from cookie `d` (`xoxd-...`)                        |
-| `SLACK_MCP_SERVER_PORT`  | No         | `3001`      | Port for the MCP server to listen on                                          |
-| `SLACK_MCP_SERVER_HOST`  | No         | `127.0.0.1` | Host for the MCP server to listen on                                          |
-| `SLACK_MCP_SERVER_PROXY` | No         | `nil`       | Proxy URL for the MCP server to use                                           |
-| `SLACK_SSE_API_KEY`      | No         | `nil`       | Authorization Bearer token when `transport` is `sse`                          |
+| Variable                       | Required ? | Default     | Description                                                                   |
+|--------------------------------|------------|-------------|-------------------------------------------------------------------------------|
+| `SLACK_MCP_XOXC_TOKEN`         | Yes        | `nil`       | Authentication data token field `token` from POST data field-set (`xoxc-...`) |
+| `SLACK_MCP_XOXD_TOKEN`         | Yes        | `nil`       | Authentication data token from cookie `d` (`xoxd-...`)                        |
+| `SLACK_MCP_SERVER_PORT`        | No         | `3001`      | Port for the MCP server to listen on                                          |
+| `SLACK_MCP_SERVER_HOST`        | No         | `127.0.0.1` | Host for the MCP server to listen on                                          |
+| `SLACK_MCP_SSE_API_KEY`        | No         | `nil`       | Authorization Bearer token when `transport` is `sse`                          |
+| `SLACK_MCP_PROXY`              | No         | `nil`       | Proxy URL for the MCP server to use                                           |
+| `SLACK_MCP_SERVER_CA`          | No         | `nil`       | Path to the CA certificate of the trust store                                 |
+| `SLACK_MCP_SERVER_CA_INSECURE` | No         | `false`     | Trust all insecure requests (NOT RECOMMENDED)                                 |
 
 ## Available Tools
 

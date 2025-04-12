@@ -2,8 +2,10 @@ package provider
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"github.com/korotovsky/slack-mcp-server/internal/transport"
 	"github.com/slack-go/slack"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -16,14 +18,14 @@ type ApiProvider struct {
 }
 
 func New() *ApiProvider {
-	token := os.Getenv("SLACK_XOXC_TOKEN")
+	token := os.Getenv("SLACK_MCP_XOXC_TOKEN")
 	if token == "" {
-		panic("SLACK_XOXC_TOKEN environment variable is required")
+		panic("SLACK_MCP_XOXC_TOKEN environment variable is required")
 	}
 
-	cookie := os.Getenv("SLACK_XOXD_TOKEN")
+	cookie := os.Getenv("SLACK_MCP_XOXD_TOKEN")
 	if cookie == "" {
-		panic("SLACK_XOXD_TOKEN environment variable is required")
+		panic("SLACK_MCP_XOXD_TOKEN environment variable is required")
 	}
 
 	return &ApiProvider{
@@ -40,7 +42,7 @@ func New() *ApiProvider {
 
 			api = slack.New(token,
 				withHTTPClientOption(cookie),
-				withTeamEndpointOption(res.TeamID),
+				withTeamEndpointOption(res.URL),
 			)
 
 			return api
@@ -59,7 +61,7 @@ func (ap *ApiProvider) Provide() (*slack.Client, error) {
 func withHTTPClientOption(cookie string) func(c *slack.Client) {
 	return func(c *slack.Client) {
 		var proxy func(*http.Request) (*url.URL, error)
-		if proxyURL := os.Getenv("HTTP_PROXY"); proxyURL != "" {
+		if proxyURL := os.Getenv("SLACK_MCP_PROXY"); proxyURL != "" {
 			parsed, err := url.Parse(proxyURL)
 			if err != nil {
 				log.Fatalf("Failed to parse proxy URL: %v", err)
@@ -70,10 +72,35 @@ func withHTTPClientOption(cookie string) func(c *slack.Client) {
 			proxy = nil
 		}
 
+		rootCAs, _ := x509.SystemCertPool()
+		if rootCAs == nil {
+			rootCAs = x509.NewCertPool()
+		}
+
+		if localCertFile := os.Getenv("SLACK_MCP_SERVER_CA"); localCertFile != "" {
+			certs, err := ioutil.ReadFile(localCertFile)
+			if err != nil {
+				log.Fatalf("Failed to append %q to RootCAs: %v", localCertFile, err)
+			}
+
+			if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+				log.Println("No certs appended, using system certs only")
+			}
+		}
+
+		insecure := false
+		if os.Getenv("SLACK_MCP_SERVER_CA_INSECURE") != "" {
+			if localCertFile := os.Getenv("SLACK_MCP_SERVER_CA"); localCertFile != "" {
+				log.Fatalf("Variable SLACK_MCP_SERVER_CA is at the same time with SLACK_MCP_SERVER_CA_INSECURE")
+			}
+			insecure = true
+		}
+
 		customHTTPTransport := &http.Transport{
 			Proxy: proxy,
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: insecure,
+				RootCAs:            rootCAs,
 			},
 		}
 
@@ -89,8 +116,8 @@ func withHTTPClientOption(cookie string) func(c *slack.Client) {
 	}
 }
 
-func withTeamEndpointOption(teamName string) slack.Option {
+func withTeamEndpointOption(url string) slack.Option {
 	return func(c *slack.Client) {
-		slack.OptionAPIURL("https://" + teamName + ".slack.com/api/")(c)
+		slack.OptionAPIURL(url + "api/")(c)
 	}
 }
