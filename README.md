@@ -10,7 +10,29 @@ Model Context Protocol (MCP) server for Slack Workspaces. This integration suppo
 
 ### 1. Authentication Setup
 
-...
+Open up your Slack *in your browser* and login.
+
+#### Lookup `SLACK_MCP_XOXC_TOKEN`
+
+- Open your browser's Developer Console.
+- In Firefox, under `Tools -> Browser Tools -> Web Developer tools` in the menu bar
+- In Chrome, click the "three dots" button to the right of the URL Bar, then select
+`More Tools -> Developer Tools`
+- Switch to the console tab.
+- Type "allow pasting" and press ENTER.
+- Paste the following snippet and press ENTER to execute:
+  `JSON.parse(localStorage.localConfig_v2).teams[document.location.pathname.match(/^\/client\/([A-Z0-9]+)/)[1]].token`
+
+Token value is printed right after the executed command (it starts with
+`xoxc-`), save it somewhere for now.
+
+#### Lookup `SLACK_MCP_XOXD_TOKEN`
+
+ - Switch to "Application" tab and select "Cookies" in the left navigation pane.
+ - Find the cookie with the name `d`.  That's right, just the letter `d`.
+ - Double-click the Value of this cookie.
+ - Press Ctrl+C or Cmd+C to copy it's value to clipboard.
+ - Save it for later.
 
 ### 2. Installation
 
@@ -78,7 +100,7 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://x.y.z.q:3001"],
       "env": {
-        "SLACK_SSE_API_KEY": "my-$$e-$ecret"
+        "SLACK_MCP_SSE_API_KEY": "my-$$e-$ecret"
       }
     }
   }
@@ -113,6 +135,9 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
 ### Debugging Tools
 
 ```bash
+# Run the inspector with stdio transport
+npx @modelcontextprotocol/inspector go run mcp/mcp-server.go --transport stdio
+
 # View logs
 tail -n 20 -f ~/Library/Logs/Claude/mcp*.log
 ```
