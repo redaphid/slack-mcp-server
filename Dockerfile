@@ -5,7 +5,7 @@ ENV GOTOOLCHAIN=local
 ENV GOCACHE=/go/pkg/mod
 
 RUN apt-get update  \
-  && apt-get install -y --no-install-recommends net-tools curl \
+  && apt-get install -y --no-install-recommends net-tools curl
 
 WORKDIR /app
 
@@ -13,10 +13,10 @@ COPY go.mod go.sum ./
 
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
-COPY . /app/mcp-server
+COPY . /app
 
 RUN --mount=type=cache,target=/go/pkg/mod \
-    go build -ldflags="-s -w" -o /go/bin/mcp-server ./cmd/
+    go build -ldflags="-s -w" -o /go/bin/mcp-server ./mcp/
 
 FROM build AS dev
 
@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 WORKDIR /app/mcp-server
 
-EXPOSE 13080
+EXPOSE 3001
 
 CMD ["mcp-server"]
 
@@ -37,6 +37,6 @@ COPY --from=build /go/bin/mcp-server /usr/local/bin/mcp-server
 
 WORKDIR /app
 
-EXPOSE 13080
+EXPOSE 3001
 
-CMD ["mcp-server"]
+CMD ["mcp-server", "--transport", "sse"]

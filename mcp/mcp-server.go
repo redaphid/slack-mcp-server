@@ -37,7 +37,7 @@ func main() {
 			port = strconv.Itoa(defaultSsePort)
 		}
 
-		sseServer := s.ServeSSE(host + ":" + port)
+		sseServer := s.ServeSSE(":" + port)
 		log.Printf("SSE server listening on " + host + ":" + port)
 		if err := sseServer.Start(host + ":" + port); err != nil {
 			log.Fatalf("Server error: %v", err)

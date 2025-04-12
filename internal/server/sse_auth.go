@@ -22,7 +22,7 @@ func authFromRequest(ctx context.Context, r *http.Request) context.Context {
 
 // authFromEnv extracts the auth token from the environment
 func authFromEnv(ctx context.Context) context.Context {
-	return withAuthKey(ctx, os.Getenv("API_KEY"))
+	return withAuthKey(ctx, os.Getenv("SLACK_SSE_API_KEY"))
 }
 
 // tokenFromContext extracts the auth token from the context.
