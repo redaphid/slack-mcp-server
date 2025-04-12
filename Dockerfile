@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 WORKDIR /app/mcp-server
 
-EXPOSE 8080
+EXPOSE 13080
 
 CMD ["mcp-server"]
 
@@ -33,10 +33,10 @@ FROM alpine:3.18 AS production
 
 RUN apk add --no-cache ca-certificates tor net-tools curl
 
-COPY --from=build /go/bin/mcp-server /usr/local/bin/pummcp-serverpe
+COPY --from=build /go/bin/mcp-server /usr/local/bin/mcp-server
 
 WORKDIR /app
 
-EXPOSE 8080
+EXPOSE 13080
 
 CMD ["mcp-server"]
