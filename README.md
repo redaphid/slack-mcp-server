@@ -121,7 +121,33 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
       "command": "npx",
       "args": [
         "-y",
-        "mcp-remote",
+        "supergateway",
+        "--sse",
+        "https://x.y.z.q:3001/sse",
+        "--header",
+        "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
+      ],
+      "env": {
+        "SLACK_MCP_SSE_API_KEY": "my-$$e-$ecret"
+      }
+    }
+  }
+}
+```
+
+#### Option 3 with `sse` transport on Windows:
+
+Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or with your preferred method and then configure it:
+
+```json
+{
+  "mcpServers": {
+    "slack": {
+      "command": "C:\\Progra~1\\nodejs\\npx.cmd",
+      "args": [
+        "-y",
+        "supergateway",
+        "--sse",
         "https://x.y.z.q:3001/sse",
         "--header",
         "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
