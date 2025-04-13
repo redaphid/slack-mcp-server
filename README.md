@@ -62,6 +62,20 @@ nano .env # Edit .env file with your tokens from step 1 of the setup guide
 docker-compose up -d
 ```
 
+#### 2.2.1 TLS and Exposing to the Internet
+
+There are several reasons why you might need to setup HTTPS for your SSE.
+ - `mcp-remote` is capable to handle only https schemes;
+ - it is generally a good practice to use TLS for any service exposed to the internet;
+
+You could use `ngrok`:
+
+```bash
+ngrok http 3001
+```
+
+and then use the endpoint `https://903d-xxx-xxxx-xxxx-10b4.ngrok-free.app` for your `mcp-remote` argument.
+
 ### 3. Configuration and Usage
 
 You can configure the MCP server using command line arguments and environment variables.
@@ -107,7 +121,7 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
       "args": [
         "-y",
         "mcp-remote",
-        "http://x.y.z.q:3001/sse",
+        "https://x.y.z.q:3001/sse",
         "--header",
         "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
       ],
