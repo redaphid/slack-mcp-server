@@ -98,7 +98,13 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
   "mcpServers": {
     "slack": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "http://x.y.z.q:3001"],
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://x.y.z.q:3001",
+        "--header",
+        "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
+      ],
       "env": {
         "SLACK_MCP_SSE_API_KEY": "my-$$e-$ecret"
       }
