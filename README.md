@@ -10,7 +10,7 @@ Model Context Protocol (MCP) server for Slack Workspaces. This integration suppo
 
 ### 1. Authentication Setup
 
-Open up your Slack *in your browser* and login.
+Open up your Slack in your browser and login.
 
 #### Lookup `SLACK_MCP_XOXC_TOKEN`
 
@@ -40,7 +40,12 @@ Choose one of these installation methods:
 
 #### 2.1. Docker
 
+For detailed information about all environment variables, see [Environment Variables](https://github.com/korotovsky/slack-mcp-server?tab=readme-ov-file#environment-variables).
+
 ```bash
+export SLACK_MCP_XOXC_TOKEN=xoxc-...
+export SLACK_MCP_XOXD_TOKEN=xoxd-...
+
 docker pull ghcr.io/korotovsky/slack-mcp-server:latest
 docker run -i --rm \
   -e SLACK_MCP_XOXC_TOKEN \
