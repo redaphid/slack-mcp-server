@@ -41,19 +41,20 @@ Choose one of these installation methods:
 #### 2.1. Docker
 
 ```bash
-git clone https://github.com/korotovsky/slack-mcp-server.git
-cd slack-mcp-server
-docker build -t slack-mcp-server .
+docker pull ghcr.io/korotovsky/slack-mcp-server:latest
+docker run -i --rm \
+  -e SLACK_MCP_XOXC_TOKEN \
+  -e SLACK_MCP_XOXD_TOKEN \
+  slack-mcp-server --transport stdio
 ```
 
 #### 2.2. Docker Compose
 
 ```bash
-git clone https://github.com/korotovsky/slack-mcp-server.git
-cd slack-mcp-server
-cp .env.example .env
+wget -O docker-compose.yml https://github.com/korotovsky/slack-mcp-server/releases/latest/download/docker-compose.yml
+wget -O .env https://github.com/korotovsky/slack-mcp-server/releases/latest/download/.env.dist
 nano .env # Edit .env file with your tokens from step 1 of the setup guide
-docker-compose build
+docker-compose up -d
 ```
 
 ### 3. Configuration and Usage
@@ -101,7 +102,7 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
       "args": [
         "-y",
         "mcp-remote",
-        "http://x.y.z.q:3001",
+        "http://x.y.z.q:3001/sse",
         "--header",
         "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
       ],
