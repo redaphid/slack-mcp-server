@@ -154,9 +154,9 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
 
 ## Available Tools
 
-| Tool                    | Description                   |
-|-------------------------|-------------------------------|
-| `conversations.history` | Get messages from the channel |
+| Tool                   | Description                   |
+|------------------------|-------------------------------|
+| `conversationsHistory` | Get messages from the channel |
 
 ### Debugging Tools
 

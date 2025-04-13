@@ -22,7 +22,7 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 
 	conversationsHandler := handler.NewConversationsHandler(provider)
 
-	s.AddTool(mcp.NewTool("conversations.history",
+	s.AddTool(mcp.NewTool("conversationsHistory",
 		mcp.WithDescription("Get messages from the channel"),
 		mcp.WithString("channel",
 			mcp.Required(),
