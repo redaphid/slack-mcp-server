@@ -28,7 +28,7 @@ func NewConversationsHandler(apiProvider *provider.ApiProvider) *ConversationsHa
 }
 
 func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	channel, ok := request.Params.Arguments["channel"].(string)
+	channel, ok := request.Params.Arguments["channelID"].(string)
 	if !ok {
 		return nil, errors.New("channel must be a string")
 	}

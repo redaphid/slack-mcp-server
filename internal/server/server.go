@@ -23,10 +23,10 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 	conversationsHandler := handler.NewConversationsHandler(provider)
 
 	s.AddTool(mcp.NewTool("conversationsHistory",
-		mcp.WithDescription("Get messages from the channel"),
-		mcp.WithString("channel",
+		mcp.WithDescription("Get messages from the channel by channelID"),
+		mcp.WithString("channelID",
 			mcp.Required(),
-			mcp.Description("Name of the channel"),
+			mcp.Description("ID of the channel in format Cxxxxxxxxxx"),
 		),
 		mcp.WithString("limit",
 			mcp.DefaultString("28"),
