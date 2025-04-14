@@ -32,6 +32,7 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 
 	params := slack.GetConversationHistoryParameters{
 		ChannelID: channel,
+		Limit:     3,
 	}
 	messages, err := api.GetConversationHistoryContext(ctx, &params)
 	if err != nil {
