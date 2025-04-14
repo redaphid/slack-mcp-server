@@ -33,9 +33,6 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		return nil, errors.New("channel must be a string")
 	}
 
-	// tmp test
-	channel = "C01B6N9FZTN"
-
 	limit, ok := request.Params.Arguments["limit"].(string)
 	if !ok {
 		return nil, errors.New("channel must be a string")
