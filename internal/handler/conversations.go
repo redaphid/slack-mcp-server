@@ -72,7 +72,7 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		})
 	}
 
-	data, err := json.MarshalIndent(messageList, "", "    ")
+	data, err := json.MarshalIndent(messageList, "", "")
 	if err != nil {
 		return nil, err
 	}

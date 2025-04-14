@@ -78,7 +78,7 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 		chans, nextcur, err = api.GetConversationsContext(ctx, params)
 
 		if nextcur == "" {
-			log.Printf("channels fetch complete", total)
+			log.Printf("channels fetch complete %v", total)
 			break
 		}
 
@@ -107,7 +107,7 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 		// pass
 	}
 
-	data, err := json.MarshalIndent(channelList, "", "    ")
+	data, err := json.MarshalIndent(channelList, "", "")
 	if err != nil {
 		return nil, err
 	}
