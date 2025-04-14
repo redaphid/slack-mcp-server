@@ -29,7 +29,7 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 			mcp.Description("Name of the channel"),
 		),
 		mcp.WithString("limit",
-			mcp.DefaultNumber(28),
+			mcp.DefaultString("28"),
 			mcp.Description("Limit of messages to fetch"),
 		),
 	), conversationsHandler.ConversationsHistoryHandler)
