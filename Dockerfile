@@ -27,7 +27,7 @@ WORKDIR /app/mcp-server
 
 EXPOSE 3001
 
-CMD ["mcp-server"]
+CMD ["mcp-server", "--transport", "sse"]
 
 FROM alpine:3.18 AS production
 

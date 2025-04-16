@@ -2,8 +2,8 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/gocarina/gocsv"
 	"github.com/korotovsky/slack-mcp-server/internal/provider"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/slack-go/slack"
@@ -19,7 +19,7 @@ type Channel struct {
 	Name        string `json:"name"`
 	Topic       string `json:"topic"`
 	Purpose     string `json:"purpose"`
-	MemberCount int    `json:"member_count"`
+	MemberCount int    `json:"memberCount"`
 }
 
 type ChannelsHandler struct {
@@ -33,8 +33,8 @@ func NewChannelsHandler(apiProvider *provider.ApiProvider) *ChannelsHandler {
 }
 
 func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	sortType := request.Params.Arguments["sort"].(string)
-	if sortType == "" {
+	sortType := request.Params.Arguments["sort"]
+	if sortType == "" || sortType == nil {
 		sortType = "popularity"
 	}
 
@@ -107,10 +107,10 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 		// pass
 	}
 
-	data, err := json.MarshalIndent(channelList, "", "")
+	csvBytes, err := gocsv.MarshalBytes(&channelList)
 	if err != nil {
 		return nil, err
 	}
 
-	return mcp.NewToolResultText(string(data)), nil
+	return mcp.NewToolResultText(string(csvBytes)), nil
 }

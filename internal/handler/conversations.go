@@ -2,19 +2,22 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"github.com/gocarina/gocsv"
 	"github.com/korotovsky/slack-mcp-server/internal/provider"
+	"github.com/korotovsky/slack-mcp-server/internal/text"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/slack-go/slack"
 	"strconv"
 )
 
 type Message struct {
-	User    string `json:"user"`
-	Text    string `json:"text"`
-	Channel string `json:"channel"`
-	Time    string `json:"time"`
+	UserID   string `json:"userID"`
+	UserName string `json:"userUser"`
+	RealName string `json:"realName"`
+	Channel  string `json:"channelID"`
+	Text     string `json:"text"`
+	Time     string `json:"time"`
 }
 
 type ConversationsHandler struct {
@@ -62,20 +65,31 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		return nil, err
 	}
 
+	usersMap := ch.apiProvider.ProvideUsersMap()
+
 	var messageList []Message
 	for _, message := range messages.Messages {
+		textTokenized := text.ProcessText(message.Text)
+		user, ok := usersMap[message.User]
+		if !ok {
+			// TODO: add periodic refetch of users
+			continue
+		}
+
 		messageList = append(messageList, Message{
-			User:    message.User,
-			Text:    message.Text,
-			Channel: channel,
-			Time:    message.Timestamp,
+			UserID:   message.User,
+			UserName: user.Name,
+			RealName: user.RealName,
+			Text:     textTokenized,
+			Channel:  channel,
+			Time:     message.Timestamp,
 		})
 	}
 
-	data, err := json.MarshalIndent(messageList, "", "")
+	csvBytes, err := gocsv.MarshalBytes(&messageList)
 	if err != nil {
 		return nil, err
 	}
 
-	return mcp.NewToolResultText(string(data)), nil
+	return mcp.NewToolResultText(string(csvBytes)), nil
 }

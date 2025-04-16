@@ -1,8 +1,10 @@
 package provider
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"github.com/korotovsky/slack-mcp-server/internal/transport"
 	"github.com/slack-go/slack"
 	"io/ioutil"
@@ -15,6 +17,9 @@ import (
 type ApiProvider struct {
 	boot   func() *slack.Client
 	client *slack.Client
+
+	users      map[string]slack.User
+	usersCache string
 }
 
 func New() *ApiProvider {
@@ -26,6 +31,11 @@ func New() *ApiProvider {
 	cookie := os.Getenv("SLACK_MCP_XOXD_TOKEN")
 	if cookie == "" {
 		panic("SLACK_MCP_XOXD_TOKEN environment variable is required")
+	}
+
+	cache := os.Getenv("SLACK_MCP_USERS_CACHE")
+	if cache == "" {
+		cache = ".users_cache.json"
 	}
 
 	return &ApiProvider{
@@ -47,15 +57,63 @@ func New() *ApiProvider {
 
 			return api
 		},
+		users:      make(map[string]slack.User),
+		usersCache: cache,
 	}
 }
 
 func (ap *ApiProvider) Provide() (*slack.Client, error) {
 	if ap.client == nil {
 		ap.client = ap.boot()
+
+		err := ap.bootstrapDependencies(context.Background())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ap.client, nil
+}
+
+func (ap *ApiProvider) bootstrapDependencies(ctx context.Context) error {
+	if data, err := ioutil.ReadFile(ap.usersCache); err == nil {
+		var cachedUsers []slack.User
+		if err := json.Unmarshal(data, &cachedUsers); err != nil {
+			log.Printf("Failed to unmarshal %s: %v; will refetch", ap.usersCache, err)
+		} else {
+			for _, u := range cachedUsers {
+				ap.users[u.ID] = u
+			}
+			log.Printf("Loaded %d users from cache %q", len(cachedUsers), ap.usersCache)
+			return nil
+		}
+	}
+
+	users, err := ap.client.GetUsersContext(ctx)
+	if err != nil {
+		log.Printf("Failed to fetch users: %v", err)
+		return err
+	}
+
+	for _, user := range users {
+		ap.users[user.ID] = user
+	}
+
+	if data, err := json.MarshalIndent(users, "", "  "); err != nil {
+		log.Printf("Failed to marshal users for cache: %v", err)
+	} else {
+		if err := ioutil.WriteFile(ap.usersCache, data, 0644); err != nil {
+			log.Printf("Failed to write cache file %q: %v", ap.usersCache, err)
+		} else {
+			log.Printf("Wrote %d users to cache %q", len(users), ap.usersCache)
+		}
+	}
+
+	return nil
+}
+
+func (ap *ApiProvider) ProvideUsersMap() map[string]slack.User {
+	return ap.users
 }
 
 func withHTTPClientOption(cookie string) func(c *slack.Client) {

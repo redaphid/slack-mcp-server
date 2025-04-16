@@ -16,6 +16,7 @@ services:
     #
     # volumes:
     #   - ./ca-cert.crt:/usr/local/share/ca-certificates/ca.crt
+    #   - ./.users_cache.json:/app/mcp-server/.users_cache.json
     env_file:
       - .env
     environment:

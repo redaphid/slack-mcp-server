@@ -18,9 +18,22 @@ func main() {
 	flag.StringVar(&transport, "transport", "stdio", "Transport type (stdio or sse)")
 	flag.Parse()
 
+	p := provider.New()
+
 	s := server.NewMCPServer(
-		provider.New(),
+		p,
 	)
+
+	go func() {
+		log.Println("Booting provider...")
+
+		_, err := p.Provide()
+		if err != nil {
+			log.Fatalf("Error booting provider: %v", err)
+		}
+
+		log.Println("Provider booted successfully.")
+	}()
 
 	switch transport {
 	case "stdio":
