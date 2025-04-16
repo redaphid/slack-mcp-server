@@ -4,7 +4,7 @@ Model Context Protocol (MCP) server for Slack Workspaces. This integration suppo
 
 ### Feature Demo
 
-![ezgif-1b6c36ef622928](https://github.com/user-attachments/assets/f96d7bc7-ed4b-4c11-abd5-d6fc59656e6d)
+![ezgif-316311ee04f444](https://github.com/user-attachments/assets/35dc9895-e695-4e56-acdc-1a46d6520ba0)
 
 ## Setup Guide
 
