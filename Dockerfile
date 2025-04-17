@@ -31,7 +31,7 @@ CMD ["mcp-server", "--transport", "sse"]
 
 FROM alpine:3.18 AS production
 
-RUN apk add --no-cache ca-certificates tor net-tools curl
+RUN apk add --no-cache ca-certificates net-tools curl
 
 COPY --from=build /go/bin/mcp-server /usr/local/bin/mcp-server
 
