@@ -121,8 +121,7 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
       "command": "npx",
       "args": [
         "-y",
-        "supergateway",
-        "--sse",
+        "mcp-remote",
         "https://x.y.z.q:3001/sse",
         "--header",
         "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
@@ -146,8 +145,7 @@ Complete steps from 2.2 and run `docker compose up -d` to launch MCP server or w
       "command": "C:\\Progra~1\\nodejs\\npx.cmd",
       "args": [
         "-y",
-        "supergateway",
-        "--sse",
+        "mcp-remote",
         "https://x.y.z.q:3001/sse",
         "--header",
         "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
