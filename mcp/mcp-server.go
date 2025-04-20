@@ -27,6 +27,11 @@ func main() {
 	go func() {
 		log.Println("Booting provider...")
 
+		if os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo" {
+			log.Println("Demo credentials are set, skip.")
+			return
+		}
+
 		_, err := p.Provide()
 		if err != nil {
 			log.Fatalf("Error booting provider: %v", err)
