@@ -3,6 +3,7 @@
 
 .DEFAULT_GOAL := help
 
+TAG ?=
 PACKAGE = $(shell go list -m)
 GIT_COMMIT_HASH = $(shell git rev-parse HEAD)
 GIT_VERSION = $(shell git describe --tags --always --dirty)
@@ -89,3 +90,11 @@ format: ## Format the code
 .PHONY: tidy
 tidy: ## Tidy up the go modules
 	go mod tidy
+
+.PHONY: release
+release: ## Create release tag. Usage: make tag TAG=v1.2.3
+	@if [ -z "$(TAG)" ]; then \
+	  echo "Usage: make tag TAG=vX.Y.Z"; exit 1; \
+	fi
+	git tag -a "$(TAG)" -m "Release $(TAG)"
+	git push origin "$(TAG)"
