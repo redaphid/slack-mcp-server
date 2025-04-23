@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . /app
 
 RUN --mount=type=cache,target=/go/pkg/mod \
-    go build -ldflags="-s -w" -o /go/bin/mcp-server ./mcp/
+    go build -ldflags="-s -w" -o /go/bin/mcp-server ./cmd/slack-mcp-server
 
 FROM build AS dev
 

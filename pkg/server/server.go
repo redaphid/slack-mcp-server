@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
-	"github.com/korotovsky/slack-mcp-server/internal/handler"
-	"github.com/korotovsky/slack-mcp-server/internal/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/handler"
+	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

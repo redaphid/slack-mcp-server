@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"github.com/korotovsky/slack-mcp-server/internal/transport"
+	"github.com/korotovsky/slack-mcp-server/pkg/transport"
 	"github.com/slack-go/slack"
 	"io/ioutil"
 	"log"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gocarina/gocsv"
-	"github.com/korotovsky/slack-mcp-server/internal/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/slack-go/slack"
 	"log"

@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/korotovsky/slack-mcp-server/internal/provider"
-	"github.com/korotovsky/slack-mcp-server/internal/server"
+	"github.com/korotovsky/slack-mcp-server/pkg/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/server"
 	"log"
 	"os"
 	"strconv"
