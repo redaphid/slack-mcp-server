@@ -1,12 +1,9 @@
-name: Build Slack MCP Server Docker Image
+name: Release Image
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Docker image tag'
-        required: false
-        default: 'v0.0.1'
+  push:
+    tags:
+      - '*'
 
 env:
   DOCKERHUB_IMAGE_NAME: korotovsky/slack-mcp-server
