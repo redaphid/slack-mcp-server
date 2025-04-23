@@ -40,7 +40,7 @@ jobs:
           files: |
             LICENSE
             build/slack-mcp-server-*
-            default.env.dist
+            .env.dist
             docker-compose.yml
 
       - name: Publish npm
