@@ -89,7 +89,11 @@ func (ap *ApiProvider) bootstrapDependencies(ctx context.Context) error {
 		}
 	}
 
-	users, err := ap.client.GetUsersContext(ctx)
+	optionLimit := slack.GetUsersOptionLimit(1000)
+
+	users, err := ap.client.GetUsersContext(ctx,
+		optionLimit,
+	)
 	if err != nil {
 		log.Printf("Failed to fetch users: %v", err)
 		return err
