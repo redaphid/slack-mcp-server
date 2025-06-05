@@ -100,14 +100,18 @@ Open your `claude_desktop_config.json` and add the mcp server to the list of `mc
         "-i",
         "--rm",
         "-e",
-        "SLACK_MCP_XOXC_TOKEN=xoxc-...",
+        "SLACK_MCP_XOXC_TOKEN",
         "-e",
-        "SLACK_MCP_XOXD_TOKEN=xoxd-...",
+        "SLACK_MCP_XOXD_TOKEN",
         "ghcr.io/korotovsky/slack-mcp-server",
         "mcp-server",
         "--transport",
         "stdio"
-      ]
+      ],
+      "env": {
+        "SLACK_MCP_XOXC_TOKEN": "xoxc-...",
+        "SLACK_MCP_XOXD_TOKEN": "xoxd-..."
+      }
     }
   }
 }
