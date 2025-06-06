@@ -5,13 +5,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"github.com/korotovsky/slack-mcp-server/pkg/transport"
-	"github.com/slack-go/slack"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+
+	"github.com/korotovsky/slack-mcp-server/pkg/transport"
+	"github.com/slack-go/slack"
 )
 
 type ApiProvider struct {

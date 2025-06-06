@@ -2,17 +2,18 @@ package handler
 
 import (
 	"context"
-	"fmt"
+	"log"
+	"sort"
+	"strings"
+
 	"github.com/gocarina/gocsv"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/slack-go/slack"
-	"log"
-	"sort"
 )
 
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
-var PubChanType = []string{"public_channel"}
+var PubChanType = "public_channel"
 
 type Channel struct {
 	ID          string `json:"id"`
@@ -24,41 +25,38 @@ type Channel struct {
 
 type ChannelsHandler struct {
 	apiProvider *provider.ApiProvider
+	validTypes  map[string]bool
 }
 
 func NewChannelsHandler(apiProvider *provider.ApiProvider) *ChannelsHandler {
+	validTypes := make(map[string]bool, len(AllChanTypes))
+	for _, v := range AllChanTypes {
+		validTypes[v] = true
+	}
+
 	return &ChannelsHandler{
 		apiProvider: apiProvider,
+		validTypes:  validTypes,
 	}
 }
 
 func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	sortType := request.Params.Arguments["sort"]
-	if sortType == "" || sortType == nil {
-		sortType = "popularity"
-	}
+	sortType := request.GetString("sort", "popularity")
+	types := request.GetString("channel_types", PubChanType)
 
-	types, ok := request.Params.Arguments["channel_types"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("channel_types should be an array")
-	}
+	// MCP Inspector v0.14.0 has issues with Slice type
+	// introspection, so some type simplification makes sense here
 	channelTypes := []string{}
-	for i, v := range types {
-		s, ok := v.(string)
-		if !ok || s == "" {
-			fmt.Printf("element at index %d is not a string\n", i)
-			continue
+	for _, t := range strings.Split(types, ",") {
+		t = strings.TrimSpace(t)
+		if ch.validTypes[t] {
+			channelTypes = append(channelTypes, t)
 		}
-		channelTypes = append(channelTypes, s)
 	}
 
 	api, err := ch.apiProvider.Provide()
 	if err != nil {
 		return nil, err
-	}
-
-	if len(types) == 0 {
-		channelTypes = PubChanType
 	}
 
 	var channels []slack.Channel

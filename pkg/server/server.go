@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/korotovsky/slack-mcp-server/pkg/handler"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -41,12 +42,9 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 
 	s.AddTool(mcp.NewTool("channels_list",
 		mcp.WithDescription("Get list of channels"),
-		mcp.WithArray("channel_types",
+		mcp.WithString("channel_types",
 			mcp.Required(),
-			mcp.Description("Possible channel types. Allowed values: 'mpim', 'im', 'public_channel', 'private_channel'."),
-			mcp.Items(map[string]any{
-				"type": "string",
-			}),
+			mcp.Description("Comma-separated channel types. Allowed values: 'mpim', 'im', 'public_channel', 'private_channel'. Example: 'public_channel,private_channel,im'"),
 		),
 		mcp.WithString("sort",
 			mcp.Description("Type of sorting. Allowed values: 'popularity' - sort by number of members/participants in each channel."),

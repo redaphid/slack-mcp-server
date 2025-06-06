@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/gocarina/gocsv"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/korotovsky/slack-mcp-server/pkg/text"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/slack-go/slack"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type Message struct {
@@ -42,22 +43,13 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		paramLatest string
 	)
 
-	channel, ok := request.Params.Arguments["channel_id"].(string)
-	if !ok {
+	channel := request.GetString("channel_id", "")
+	if channel == "" {
 		return nil, errors.New("channel_id must be a string")
 	}
 
-	limit := ""
-	limitOptional := request.Params.Arguments["limit"]
-	if limitOptional != nil {
-		limit = limitOptional.(string)
-	}
-
-	cursor := ""
-	cursorOptional := request.Params.Arguments["cursor"]
-	if cursorOptional != nil {
-		cursor = cursorOptional.(string)
-	}
+	limit := request.GetString("limit", "")
+	cursor := request.GetString("cursor", "")
 
 	if strings.HasSuffix(limit, "d") {
 		paramLimit, paramOldest, paramLatest, err = limitByDays(limit)
