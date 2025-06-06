@@ -25,7 +25,7 @@ services:
     # Uncomment if you use HTTP Toolkit with proxy on 127.0.0.1:8000
     # on your host, otherwise leave it commented.
     # extra_hosts:
-    #   - "host.docker.internal:host-gateway"
+    #  - "host.docker.internal:host-gateway"
 
 networks:
   app-tier:
