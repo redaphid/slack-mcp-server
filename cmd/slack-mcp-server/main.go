@@ -2,11 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/korotovsky/slack-mcp-server/pkg/provider"
-	"github.com/korotovsky/slack-mcp-server/pkg/server"
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/korotovsky/slack-mcp-server/pkg/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/server"
 )
 
 var defaultSseHost = "127.0.0.1"
