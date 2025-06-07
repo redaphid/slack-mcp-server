@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sort"
 	"strings"
@@ -55,24 +56,13 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 		}
 	}
 
-	cursor := ""
-	cursorOpt := request.Params.Arguments["cursor"]
-	if cursorOpt != nil {
-		cursor = cursorOpt.(string)
+	cursor := request.GetString("cursor", "")
+	limit := request.GetInt("limit", 0)
+	if limit == 0 && cursor == "" {
+		return nil, fmt.Errorf("One of limit or cursor needs to be provided")
 	}
-
-	limit := 100
-	limitOpt := request.Params.Arguments["limit"]
-	if limitOpt != nil {
-		limit =  int(limitOpt.(float64))
-	}
-
-	if limitOpt == nil && cursorOpt == nil {
-		return nil, fmt.Errorf("One of limit or cursor need to be provided")
-	}
-
-	if len(types) == 0 {
-		channelTypes = PubChanType
+	if limit == 0 {
+		limit = 100
 	}
 
 	api, err := ch.apiProvider.Provide()
@@ -115,7 +105,7 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 			params.Limit -= l
 		}
 
-		if total == limit {
+		if total >= limit {
 			log.Printf("channels fetch limit reached %v", total)
 			break
 		}
