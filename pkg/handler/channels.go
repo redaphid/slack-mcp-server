@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sort"
 	"strings"
@@ -21,6 +22,7 @@ type Channel struct {
 	Topic       string `json:"topic"`
 	Purpose     string `json:"purpose"`
 	MemberCount int    `json:"memberCount"`
+	Cursor      string `json:"cursor"`
 }
 
 type ChannelsHandler struct {
@@ -54,46 +56,65 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 		}
 	}
 
+	cursor := request.GetString("cursor", "")
+	limit := request.GetInt("limit", 0)
+	if limit == 0 && cursor == "" {
+		return nil, fmt.Errorf("One of limit or cursor needs to be provided")
+	}
+	if limit == 0 {
+		limit = 100
+	}
+
 	api, err := ch.apiProvider.Provide()
 	if err != nil {
 		return nil, err
 	}
 
-	var channels []slack.Channel
+	var channelList []Channel
 
 	params := &slack.GetConversationsParameters{
 		Types:           channelTypes,
-		Limit:           100,
+		Limit:           limit,
 		ExcludeArchived: true,
+		Cursor:          cursor,
 	}
-	var total int
-	for i := 1; ; i++ {
-		var (
-			chans   []slack.Channel
-			nextcur string
-		)
+	var (
+		total   int
+		nextcur string
+	)
+	for {
+		var chans []slack.Channel
 
 		chans, nextcur, err = api.GetConversationsContext(ctx, params)
-
-		if nextcur == "" {
-			log.Printf("channels fetch complete %v", total)
+		if err != nil {
 			break
 		}
 
+		if l := len(chans); l > 0 {
+			for _, channel := range chans {
+				channelList = append(channelList, Channel{
+					ID:          channel.ID,
+					Name:        "#" + channel.Name,
+					Topic:       channel.Topic.Value,
+					Purpose:     channel.Purpose.Value,
+					MemberCount: channel.NumMembers,
+				})
+			}
+
+			total += l
+			params.Limit -= l
+		}
+
+		if total >= limit {
+			log.Printf("channels fetch limit reached %v", total)
+			break
+		}
+
+		if nextcur == "" {
+			log.Printf("channels fetch exhausted")
+			break
+		}
 		params.Cursor = nextcur
-
-		channels = append(channels, chans...)
-	}
-
-	var channelList []Channel
-	for _, channel := range channels {
-		channelList = append(channelList, Channel{
-			ID:          channel.ID,
-			Name:        "#" + channel.Name,
-			Topic:       channel.Topic.Value,
-			Purpose:     channel.Purpose.Value,
-			MemberCount: channel.NumMembers,
-		})
 	}
 
 	switch sortType {
@@ -103,6 +124,10 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 		})
 	default:
 		// pass
+	}
+
+	if len(channelList) > 0 && nextcur != "" {
+		channelList[len(channelList)-1].Cursor = nextcur
 	}
 
 	csvBytes, err := gocsv.MarshalBytes(&channelList)

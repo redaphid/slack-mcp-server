@@ -49,6 +49,13 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 		mcp.WithString("sort",
 			mcp.Description("Type of sorting. Allowed values: 'popularity' - sort by number of members/participants in each channel."),
 		),
+		mcp.WithNumber("limit",
+			mcp.DefaultNumber(100),
+			mcp.Description("The maximum number of items to return. Must be an integer under 1000."),
+		),
+		mcp.WithString("cursor",
+			mcp.Description("Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request."),
+		),
 	), channelsHandler.ChannelsHandler)
 
 	return &MCPServer{
