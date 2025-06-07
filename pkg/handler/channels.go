@@ -22,7 +22,7 @@ type Channel struct {
 	Topic       string `json:"topic"`
 	Purpose     string `json:"purpose"`
 	MemberCount int    `json:"memberCount"`
-	Cursor   	string `json:"cursor"`
+	Cursor      string `json:"cursor"`
 }
 
 type ChannelsHandler struct {
@@ -76,10 +76,10 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 		Types:           channelTypes,
 		Limit:           limit,
 		ExcludeArchived: true,
-		Cursor:			 cursor,
+		Cursor:          cursor,
 	}
 	var (
-		total int
+		total   int
 		nextcur string
 	)
 	for {
