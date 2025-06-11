@@ -16,7 +16,7 @@ type MCPServer struct {
 func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 	s := server.NewMCPServer(
 		"Slack MCP Server",
-		"1.0.0",
+		"1.1.11",
 		server.WithLogging(),
 		server.WithRecovery(),
 	)
@@ -37,6 +37,25 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 			mcp.Description("Limit of messages to fetch in format of maximum ranges of time (e.g. 1d - 1 day, 30d - 30 days, 90d - 90 days which is a default limit for free tier history) or number of messages (e.g. 50). Must be empty when 'cursor' is provided."),
 		),
 	), conversationsHandler.ConversationsHistoryHandler)
+
+	s.AddTool(mcp.NewTool("conversations_replies",
+		mcp.WithDescription("Get a thread of messages posted to a conversation by channelID and thread_ts, the last row/column in the response is used as 'cursor' parameter for pagination if not empty"),
+		mcp.WithString("channel_id",
+			mcp.Required(),
+			mcp.Description("ID of the channel in format Cxxxxxxxxxx"),
+		),
+		mcp.WithString("thread_ts",
+			mcp.Required(),
+			mcp.Description("Unique identifier of either a thread’s parent message or a message in the thread. ts must be the timestamp in format 1234567890.123456 of an existing message with 0 or more replies."),
+		),
+		mcp.WithString("cursor",
+			mcp.Description("Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request."),
+		),
+		mcp.WithString("limit",
+			mcp.DefaultString("1d"),
+			mcp.Description("Limit of messages to fetch in format of maximum ranges of time (e.g. 1d - 1 day, 30d - 30 days, 90d - 90 days which is a default limit for free tier history) or number of messages (e.g. 50). Must be empty when 'cursor' is provided."),
+		),
+	), conversationsHandler.ConversationsRepliesHandler)
 
 	channelsHandler := handler.NewChannelsHandler(provider)
 
