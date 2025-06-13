@@ -16,7 +16,7 @@ type MCPServer struct {
 func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 	s := server.NewMCPServer(
 		"Slack MCP Server",
-		"1.1.11",
+		"1.1.12",
 		server.WithLogging(),
 		server.WithRecovery(),
 	)
@@ -70,7 +70,7 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 		),
 		mcp.WithNumber("limit",
 			mcp.DefaultNumber(100),
-			mcp.Description("The maximum number of items to return. Must be an integer under 1000."),
+			mcp.Description("The maximum number of items to return. Must be an integer between 1 and 1000 (maximum 999)."), // context fix for cursor: https://github.com/korotovsky/slack-mcp-server/issues/7
 		),
 		mcp.WithString("cursor",
 			mcp.Description("Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request."),
