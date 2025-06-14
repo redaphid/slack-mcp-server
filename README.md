@@ -2,6 +2,11 @@
 
 Model Context Protocol (MCP) server for Slack Workspaces. This integration supports both Stdio and SSE transports, proxy settings and does not require any permissions or bots being created or approved by Workspace admins 😏.
 
+> [!IMPORTANT]  
+> We need your support! Each month, over 10,000 engineers visit this repository, and more than 2,000 are already using it.
+> 
+> If you appreciate the work our [contributors](https://github.com/korotovsky/slack-mcp-server/graphs/contributors) have put into this project, please consider giving the repository a star.
+
 ### Feature Demo
 
 ![ezgif-316311ee04f444](https://github.com/user-attachments/assets/35dc9895-e695-4e56-acdc-1a46d6520ba0)
