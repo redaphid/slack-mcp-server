@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"os"
@@ -25,21 +26,8 @@ func main() {
 		p,
 	)
 
-	go func() {
-		log.Println("Booting provider...")
-
-		if os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo" {
-			log.Println("Demo credentials are set, skip.")
-			return
-		}
-
-		_, err := p.Provide()
-		if err != nil {
-			log.Fatalf("Error booting provider: %v", err)
-		}
-
-		log.Println("Provider booted successfully.")
-	}()
+	go newUsersWatcher(p)()
+	go newChannelsWatcher(p)()
 
 	switch transport {
 	case "stdio":
@@ -65,5 +53,41 @@ func main() {
 		log.Fatalf("Invalid transport type: %s. Must be 'stdio' or 'sse'",
 			transport,
 		)
+	}
+}
+
+func newUsersWatcher(p *provider.ApiProvider) func() {
+	return func() {
+		log.Println("Caching users collection...")
+
+		if os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo" {
+			log.Println("Demo credentials are set, skip.")
+			return
+		}
+
+		err := p.RefreshUsers(context.Background())
+		if err != nil {
+			log.Fatalf("Error booting provider: %v", err)
+		}
+
+		log.Println("Users cached successfully.")
+	}
+}
+
+func newChannelsWatcher(p *provider.ApiProvider) func() {
+	return func() {
+		log.Println("Caching channels collection...")
+
+		if os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo" {
+			log.Println("Demo credentials are set, skip.")
+			return
+		}
+
+		err := p.RefreshChannels(context.Background())
+		if err != nil {
+			log.Fatalf("Error booting provider: %v", err)
+		}
+
+		log.Println("Channels cached successfully.")
 	}
 }

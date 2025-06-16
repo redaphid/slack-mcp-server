@@ -11,7 +11,7 @@ Model Context Protocol (MCP) server for Slack Workspaces. This integration suppo
 1. `conversations_history`
   - Get messages from the channel by channelID
   - Required inputs:
-    - `channel_id` (string): ID of the channel in format Cxxxxxxxxxx.
+    - `channel_id` (string): ID of the channel in format Cxxxxxxxxxx or its name starting with #... aka #general.
     - `include_activity_messages` (bool, default: false): If true, the response will include activity messages such as 'channel_join' or 'channel_leave'. Default is boolean false.
     - `cursor` (string, default: ""): Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request.
     - `limit` (string, default: 28): Limit of messages to fetch.
@@ -20,7 +20,7 @@ Model Context Protocol (MCP) server for Slack Workspaces. This integration suppo
 2. `conversations_replies`
   - Get a thread of messages posted to a conversation by channelID and thread_ts
   - Required inputs:
-    - `channel_id` (string): ID of the channel in format Cxxxxxxxxxx.
+    - `channel_id` (string): ID of the channel in format Cxxxxxxxxxx or its name starting with #... aka #general.
     - `thread_ts` (string): Unique identifier of either a thread’s parent message or a message in the thread. ts must be the timestamp in format 1234567890.123456 of an existing message with 0 or more replies.
     - `include_activity_messages` (bool, default: false): If true, the response will include activity messages such as 'channel_join' or 'channel_leave'. Default is boolean false.
     - `cursor` (string, default: ""): Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request.

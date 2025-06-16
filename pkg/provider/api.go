@@ -15,12 +15,24 @@ import (
 	"github.com/slack-go/slack"
 )
 
+var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
+var PubChanType = "public_channel"
+
+type ChannelsCache struct {
+	Channels    map[string]slack.Channel `json:"channels"`
+	ChannelsInv map[string]string        `json:"channels_inv"`
+}
+
 type ApiProvider struct {
 	boot   func() *slack.Client
 	client *slack.Client
 
 	users      map[string]slack.User
 	usersCache string
+
+	channels      map[string]slack.Channel
+	channelsInv   map[string]string
+	channelsCache string
 }
 
 func New() *ApiProvider {
@@ -34,9 +46,14 @@ func New() *ApiProvider {
 		panic("SLACK_MCP_XOXD_TOKEN environment variable is required")
 	}
 
-	cache := os.Getenv("SLACK_MCP_USERS_CACHE")
-	if cache == "" {
-		cache = ".users_cache.json"
+	usersCache := os.Getenv("SLACK_MCP_USERS_CACHE")
+	if usersCache == "" {
+		usersCache = ".users_cache.json"
+	}
+
+	channelsCache := os.Getenv("SLACK_MCP_CHANNELS_CACHE")
+	if channelsCache == "" {
+		channelsCache = ".channels_cache.json"
 	}
 
 	return &ApiProvider{
@@ -58,25 +75,25 @@ func New() *ApiProvider {
 
 			return api
 		},
+
 		users:      make(map[string]slack.User),
-		usersCache: cache,
+		usersCache: usersCache,
+
+		channels:      make(map[string]slack.Channel),
+		channelsInv:   map[string]string{},
+		channelsCache: channelsCache,
 	}
 }
 
 func (ap *ApiProvider) Provide() (*slack.Client, error) {
 	if ap.client == nil {
 		ap.client = ap.boot()
-
-		err := ap.bootstrapDependencies(context.Background())
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return ap.client, nil
 }
 
-func (ap *ApiProvider) bootstrapDependencies(ctx context.Context) error {
+func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 	if data, err := ioutil.ReadFile(ap.usersCache); err == nil {
 		var cachedUsers []slack.User
 		if err := json.Unmarshal(data, &cachedUsers); err != nil {
@@ -92,7 +109,12 @@ func (ap *ApiProvider) bootstrapDependencies(ctx context.Context) error {
 
 	optionLimit := slack.GetUsersOptionLimit(1000)
 
-	users, err := ap.client.GetUsersContext(ctx,
+	client, err := ap.Provide()
+	if err != nil {
+		return err
+	}
+
+	users, err := client.GetUsersContext(ctx,
 		optionLimit,
 	)
 	if err != nil {
@@ -117,8 +139,112 @@ func (ap *ApiProvider) bootstrapDependencies(ctx context.Context) error {
 	return nil
 }
 
+func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
+	if data, err := ioutil.ReadFile(ap.channelsCache); err == nil {
+		var cachedChannels []slack.Channel
+		if err := json.Unmarshal(data, &cachedChannels); err != nil {
+			log.Printf("Failed to unmarshal %s: %v; will refetch", ap.usersCache, err)
+		} else {
+			for _, c := range cachedChannels {
+				ap.channels[c.ID] = c
+			}
+			log.Printf("Loaded %d channels from cache %q", len(cachedChannels), ap.usersCache)
+			return nil
+		}
+	}
+
+	channels := ap.GetChannels(ctx, AllChanTypes)
+
+	if data, err := json.MarshalIndent(channels, "", "  "); err != nil {
+		log.Printf("Failed to marshal channels for cache: %v", err)
+	} else {
+		if err := ioutil.WriteFile(ap.channelsCache, data, 0644); err != nil {
+			log.Printf("Failed to write cache file %q: %v", ap.channelsCache, err)
+		} else {
+			log.Printf("Wrote %d channels to cache %q", len(channels), ap.channelsCache)
+		}
+	}
+
+	return nil
+}
+
+func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) []slack.Channel {
+	if len(channelTypes) == 0 {
+		channelTypes = AllChanTypes
+	}
+
+	params := &slack.GetConversationsParameters{
+		Types:           AllChanTypes,
+		Limit:           999,
+		ExcludeArchived: true,
+	}
+	var (
+		total   int
+		nextcur string
+		err     error
+	)
+
+	client, err := ap.Provide()
+	if err != nil {
+		return nil
+	}
+
+	for {
+		var chans []slack.Channel
+
+		chans, nextcur, err = client.GetConversationsContext(ctx, params)
+		if err != nil {
+			break
+		}
+
+		if l := len(chans); l > 0 {
+			for _, channel := range chans {
+				ap.channels[channel.ID] = channel
+				ap.channelsInv["#"+channel.Name] = channel.ID
+			}
+
+			total += l
+			params.Limit -= l
+		}
+
+		if nextcur == "" {
+			log.Printf("channels fetch exhausted")
+			break
+		}
+
+		params.Cursor = nextcur
+	}
+
+	var res []slack.Channel
+	for _, t := range channelTypes {
+		for _, channel := range ap.channels {
+			if t == "public_channel" && !channel.IsPrivate {
+				res = append(res, channel)
+			}
+			if t == "private_channel" && channel.IsPrivate {
+				res = append(res, channel)
+			}
+			if t == "im" && channel.IsIM {
+				res = append(res, channel)
+			}
+			if t == "mpim" && channel.IsMpIM {
+				res = append(res, channel)
+			}
+		}
+	}
+
+	return res
+}
+
 func (ap *ApiProvider) ProvideUsersMap() map[string]slack.User {
 	return ap.users
+}
+
+func (ap *ApiProvider) ProvideChannelsMaps() *ChannelsCache {
+	return &ChannelsCache{
+		Channels:    ap.channels,
+		ChannelsInv: ap.channelsInv,
+	}
 }
 
 func withHTTPClientOption(cookie string) func(c *slack.Client) {
