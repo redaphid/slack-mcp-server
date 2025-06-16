@@ -26,6 +26,15 @@ type Message struct {
 	Cursor   string `json:"cursor"`
 }
 
+type conversationParams struct {
+	channel  string
+	limit    int
+	oldest   string
+	latest   string
+	cursor   string
+	activity bool
+}
+
 type ConversationsHandler struct {
 	apiProvider *provider.ApiProvider
 }
@@ -37,31 +46,9 @@ func NewConversationsHandler(apiProvider *provider.ApiProvider) *ConversationsHa
 }
 
 func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	var (
-		err         error
-		paramLimit  int
-		paramOldest string
-		paramLatest string
-	)
-
-	channel := request.GetString("channel_id", "")
-	if channel == "" {
-		return nil, errors.New("channel_id must be a string")
-	}
-
-	limit := request.GetString("limit", "")
-	cursor := request.GetString("cursor", "")
-
-	if strings.HasSuffix(limit, "d") {
-		paramLimit, paramOldest, paramLatest, err = limitByDays(limit)
-		if err != nil {
-			return nil, err
-		}
-	} else if cursor == "" {
-		paramLimit, err = limitByNumeric(limit)
-		if err != nil {
-			return nil, err
-		}
+	params, err := parseParams(request)
+	if err != nil {
+		return nil, err
 	}
 
 	api, err := ch.apiProvider.Provide()
@@ -69,70 +56,33 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		return nil, err
 	}
 
-	params := slack.GetConversationHistoryParameters{
-		ChannelID: channel,
-		Limit:     paramLimit,
-		Oldest:    paramOldest,
-		Latest:    paramLatest,
-		Cursor:    cursor,
+	historyParams := slack.GetConversationHistoryParameters{
+		ChannelID: params.channel,
+		Limit:     params.limit,
+		Oldest:    params.oldest,
+		Latest:    params.latest,
+		Cursor:    params.cursor,
 		Inclusive: false,
 	}
-	messages, err := api.GetConversationHistoryContext(ctx, &params)
+
+	history, err := api.GetConversationHistoryContext(ctx, &historyParams)
 	if err != nil {
 		return nil, err
 	}
 
-	usersMap := ch.apiProvider.ProvideUsersMap()
+	messages := ch.convertMessages(history.Messages, params.channel, params.activity)
 
-	var messageList []Message
-	for _, message := range messages.Messages {
-		textTokenized := text.ProcessText(message.Text)
-		user, ok := usersMap[message.User]
-
-		var (
-			userName = message.User
-			realName = message.User
-		)
-
-		if ok {
-			userName = user.Name
-			realName = user.RealName
-		}
-
-		messageList = append(messageList, Message{
-			UserID:   message.User,
-			UserName: userName,
-			RealName: realName,
-			Text:     textTokenized,
-			Channel:  channel,
-			ThreadTs: message.ThreadTimestamp,
-			Time:     message.Timestamp,
-		})
+	if len(messages) > 0 && history.HasMore {
+		messages[len(messages)-1].Cursor = history.ResponseMetaData.NextCursor
 	}
 
-	if len(messageList) > 0 && messages.HasMore {
-		messageList[len(messageList)-1].Cursor = messages.ResponseMetaData.NextCursor
-	}
-
-	csvBytes, err := gocsv.MarshalBytes(&messageList)
-	if err != nil {
-		return nil, err
-	}
-
-	return mcp.NewToolResultText(string(csvBytes)), nil
+	return ch.marshalMessagesToCSV(messages)
 }
 
 func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	var (
-		err         error
-		paramLimit  int
-		paramOldest string
-		paramLatest string
-	)
-
-	channel := request.GetString("channel_id", "")
-	if channel == "" {
-		return nil, errors.New("channel_id must be a string")
+	params, err := parseParams(request)
+	if err != nil {
+		return nil, err
 	}
 
 	threadTs := request.GetString("thread_ts", "")
@@ -140,8 +90,84 @@ func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context,
 		return nil, errors.New("thread_ts must be a string")
 	}
 
+	api, err := ch.apiProvider.Provide()
+	if err != nil {
+		return nil, err
+	}
+
+	repliesParams := slack.GetConversationRepliesParameters{
+		ChannelID: params.channel,
+		Timestamp: threadTs,
+		Limit:     params.limit,
+		Oldest:    params.oldest,
+		Latest:    params.latest,
+		Cursor:    params.cursor,
+		Inclusive: false,
+	}
+
+	replies, hasMore, nextCursor, err := api.GetConversationRepliesContext(ctx, &repliesParams)
+	if err != nil {
+		return nil, err
+	}
+
+	messages := ch.convertMessages(replies, params.channel, params.activity)
+
+	if len(messages) > 0 && hasMore {
+		messages[len(messages)-1].Cursor = nextCursor
+	}
+
+	return ch.marshalMessagesToCSV(messages)
+}
+
+func (ch *ConversationsHandler) convertMessages(slackMessages []slack.Message, channel string, includeActivity bool) []Message {
+	usersMap := ch.apiProvider.ProvideUsersMap()
+	var messages []Message
+
+	for _, msg := range slackMessages {
+		if msg.SubType != "" && !includeActivity {
+			continue
+		}
+
+		userName, realName := getUserInfo(msg.User, usersMap)
+
+		messages = append(messages, Message{
+			UserID:   msg.User,
+			UserName: userName,
+			RealName: realName,
+			Text:     text.ProcessText(msg.Text),
+			Channel:  channel,
+			ThreadTs: msg.ThreadTimestamp,
+			Time:     msg.Timestamp,
+		})
+	}
+
+	return messages
+}
+
+func (ch *ConversationsHandler) marshalMessagesToCSV(messages []Message) (*mcp.CallToolResult, error) {
+	csvBytes, err := gocsv.MarshalBytes(&messages)
+	if err != nil {
+		return nil, err
+	}
+	return mcp.NewToolResultText(string(csvBytes)), nil
+}
+
+func parseParams(request mcp.CallToolRequest) (*conversationParams, error) {
+	channel := request.GetString("channel_id", "")
+	if channel == "" {
+		return nil, errors.New("channel_id must be a string")
+	}
+
 	limit := request.GetString("limit", "")
 	cursor := request.GetString("cursor", "")
+	activity := request.GetBool("include_activity_messages", false)
+
+	var (
+		paramLimit  int
+		paramOldest string
+		paramLatest string
+		err         error
+	)
 
 	if strings.HasSuffix(limit, "d") {
 		paramLimit, paramOldest, paramLatest, err = limitByDays(limit)
@@ -155,62 +181,21 @@ func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context,
 		}
 	}
 
-	api, err := ch.apiProvider.Provide()
-	if err != nil {
-		return nil, err
+	return &conversationParams{
+		channel:  channel,
+		limit:    paramLimit,
+		oldest:   paramOldest,
+		latest:   paramLatest,
+		cursor:   cursor,
+		activity: activity,
+	}, nil
+}
+
+func getUserInfo(userID string, usersMap map[string]slack.User) (userName, realName string) {
+	if user, ok := usersMap[userID]; ok {
+		return user.Name, user.RealName
 	}
-
-	params := slack.GetConversationRepliesParameters{
-		ChannelID: channel,
-		Timestamp: threadTs,
-		Limit:     paramLimit,
-		Oldest:    paramOldest,
-		Latest:    paramLatest,
-		Cursor:    cursor,
-		Inclusive: false,
-	}
-	messages, hasMore, nextCursor, err := api.GetConversationRepliesContext(ctx, &params)
-	if err != nil {
-		return nil, err
-	}
-
-	usersMap := ch.apiProvider.ProvideUsersMap()
-
-	var messageList []Message
-	for _, message := range messages {
-		textTokenized := text.ProcessText(message.Text)
-		user, ok := usersMap[message.User]
-
-		var (
-			userName = message.User
-			realName = message.User
-		)
-
-		if ok {
-			userName = user.Name
-			realName = user.RealName
-		}
-
-		messageList = append(messageList, Message{
-			UserID:   message.User,
-			UserName: userName,
-			RealName: realName,
-			Text:     textTokenized,
-			Channel:  channel,
-			Time:     message.Timestamp,
-		})
-	}
-
-	if len(messageList) > 0 && hasMore {
-		messageList[len(messageList)-1].Cursor = nextCursor
-	}
-
-	csvBytes, err := gocsv.MarshalBytes(&messageList)
-	if err != nil {
-		return nil, err
-	}
-
-	return mcp.NewToolResultText(string(csvBytes)), nil
+	return userID, userID
 }
 
 func limitByNumeric(limit string) (int, error) {
@@ -218,7 +203,6 @@ func limitByNumeric(limit string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("invalid numeric limit: %q", limit)
 	}
-
 	return n, nil
 }
 
