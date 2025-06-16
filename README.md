@@ -212,7 +212,7 @@ docker pull ghcr.io/korotovsky/slack-mcp-server:latest
 docker run -i --rm \
   -e SLACK_MCP_XOXC_TOKEN \
   -e SLACK_MCP_XOXD_TOKEN \
-  slack-mcp-server --transport stdio
+  slack-mcp-server mcp-server --transport stdio
 ```
 
 Or, the docker-compose way:
