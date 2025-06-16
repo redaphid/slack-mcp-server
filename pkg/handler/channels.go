@@ -93,13 +93,27 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 			break
 		}
 
+		usersMap := ch.apiProvider.ProvideUsersMap()
+
 		if l := len(chans); l > 0 {
 			for _, channel := range chans {
+
+				channelName := "#" + channel.Name
+				purpose := channel.Purpose.Value
+				if channel.IsIM || channel.IsMpIM {
+					user, ok := usersMap[channel.User]
+					if ok {
+						channelName = "@" + user.Name
+						purpose = "DM " + user.RealName
+					}
+
+				}
+
 				channelList = append(channelList, Channel{
 					ID:          channel.ID,
-					Name:        "#" + channel.Name,
+					Name:        channelName,
 					Topic:       channel.Topic.Value,
-					Purpose:     channel.Purpose.Value,
+					Purpose:     purpose,
 					MemberCount: channel.NumMembers,
 				})
 			}
