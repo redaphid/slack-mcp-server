@@ -94,19 +94,32 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 
 		if l := len(chans); l > 0 {
 			for _, channel := range chans {
-
 				channelName := "#" + channel.Name
 				purpose := channel.Purpose.Value
+				numMembers := channel.NumMembers
 				if channel.IsIM {
-					//log all channel object
-					log.Printf("Channel %+v %+v", channel.ID, channel)
-
+					numMembers = 2
 					user, ok := usersMap[channel.User]
 					if ok {
 						channelName = "@" + user.Name
 						purpose = "DM " + user.RealName
+					} else {
+						channelName = "@" + channel.User
+						purpose = "DM with " + channel.User
+					}
+				} else if channel.IsMpIM && channel.IsPrivate && channel.NumMembers > 0 {
+					numMembers = channel.NumMembers
+					userNames := make([]string, 0, channel.NumMembers)
+					for _, userID := range channel.Members {
+						if user, ok := usersMap[userID]; ok {
+							userNames = append(userNames, user.RealName)
+						} else {
+							userNames = append(userNames, userID)
+						}
 					}
 
+					channelName = "@" + channel.NameNormalized
+					purpose = "Group DM with " + strings.Join(userNames, ", ")
 				}
 
 				channelList = append(channelList, Channel{
@@ -114,7 +127,7 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 					Name:        channelName,
 					Topic:       channel.Topic.Value,
 					Purpose:     purpose,
-					MemberCount: channel.NumMembers,
+					MemberCount: numMembers,
 				})
 			}
 
