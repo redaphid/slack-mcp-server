@@ -100,7 +100,10 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 
 				channelName := "#" + channel.Name
 				purpose := channel.Purpose.Value
-				if channel.IsIM || channel.IsMpIM {
+				if channel.IsIM {
+					//log all channel object
+					log.Printf("Channel %+v %+v", channel.ID, channel)
+
 					user, ok := usersMap[channel.User]
 					if ok {
 						channelName = "@" + user.Name
