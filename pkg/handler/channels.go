@@ -13,9 +13,6 @@ import (
 	"github.com/slack-go/slack"
 )
 
-var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
-var PubChanType = "public_channel"
-
 type Channel struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -31,8 +28,8 @@ type ChannelsHandler struct {
 }
 
 func NewChannelsHandler(apiProvider *provider.ApiProvider) *ChannelsHandler {
-	validTypes := make(map[string]bool, len(AllChanTypes))
-	for _, v := range AllChanTypes {
+	validTypes := make(map[string]bool, len(provider.AllChanTypes))
+	for _, v := range provider.AllChanTypes {
 		validTypes[v] = true
 	}
 
@@ -44,7 +41,7 @@ func NewChannelsHandler(apiProvider *provider.ApiProvider) *ChannelsHandler {
 
 func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	sortType := request.GetString("sort", "popularity")
-	types := request.GetString("channel_types", PubChanType)
+	types := request.GetString("channel_types", provider.PubChanType)
 
 	// MCP Inspector v0.14.0 has issues with Slice type
 	// introspection, so some type simplification makes sense here

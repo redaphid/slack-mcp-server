@@ -46,7 +46,7 @@ func NewConversationsHandler(apiProvider *provider.ApiProvider) *ConversationsHa
 }
 
 func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	params, err := parseParams(request)
+	params, err := ch.parseParams(request)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 }
 
 func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	params, err := parseParams(request)
+	params, err := ch.parseParams(request)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (ch *ConversationsHandler) marshalMessagesToCSV(messages []Message) (*mcp.C
 	return mcp.NewToolResultText(string(csvBytes)), nil
 }
 
-func parseParams(request mcp.CallToolRequest) (*conversationParams, error) {
+func (ch *ConversationsHandler) parseParams(request mcp.CallToolRequest) (*conversationParams, error) {
 	channel := request.GetString("channel_id", "")
 	if channel == "" {
 		return nil, errors.New("channel_id must be a string")
@@ -179,6 +179,16 @@ func parseParams(request mcp.CallToolRequest) (*conversationParams, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if strings.HasPrefix(channel, "#") {
+		channelsMaps := ch.apiProvider.ProvideChannelsMaps()
+		chn, ok := channelsMaps.ChannelsInv[channel]
+		if !ok {
+			return nil, fmt.Errorf("channel %q not found", channel)
+		}
+
+		channel = channelsMaps.Channels[chn].ID
 	}
 
 	return &conversationParams{
