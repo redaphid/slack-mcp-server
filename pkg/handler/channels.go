@@ -56,7 +56,7 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 	cursor := request.GetString("cursor", "")
 	limit := request.GetInt("limit", 0)
 	if limit == 0 && cursor == "" {
-		return nil, fmt.Errorf("one of limit or cursor needs to be provided")
+		limit = 100
 	}
 	if limit == 0 {
 		limit = 100
