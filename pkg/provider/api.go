@@ -36,16 +36,57 @@ type ApiProvider struct {
 }
 
 func New() *ApiProvider {
-	token := os.Getenv("SLACK_MCP_XOXC_TOKEN")
-	if token == "" {
-		panic("SLACK_MCP_XOXC_TOKEN environment variable is required")
+	// Check for XOXP token first (Bot User OAuth)
+	xoxpToken := os.Getenv("SLACK_MCP_XOXP_TOKEN")
+	if xoxpToken != "" {
+		return newWithXOXP(xoxpToken)
 	}
 
-	cookie := os.Getenv("SLACK_MCP_XOXD_TOKEN")
-	if cookie == "" {
-		panic("SLACK_MCP_XOXD_TOKEN environment variable is required")
+	// Fall back to XOXC/XOXD tokens (session-based)
+	xoxcToken := os.Getenv("SLACK_MCP_XOXC_TOKEN")
+	xoxdToken := os.Getenv("SLACK_MCP_XOXD_TOKEN")
+	
+	if xoxcToken == "" || xoxdToken == "" {
+		panic("Authentication required: Either SLACK_MCP_XOXP_TOKEN (Bot User OAuth) or both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN (session-based) environment variables must be provided")
 	}
 
+	return newWithXOXC(xoxcToken, xoxdToken)
+}
+
+func newWithXOXP(token string) *ApiProvider {
+	usersCache := os.Getenv("SLACK_MCP_USERS_CACHE")
+	if usersCache == "" {
+		usersCache = ".users_cache.json"
+	}
+
+	channelsCache := os.Getenv("SLACK_MCP_CHANNELS_CACHE")
+	if channelsCache == "" {
+		channelsCache = ".channels_cache.json"
+	}
+
+	return &ApiProvider{
+		boot: func() *slack.Client {
+			api := slack.New(token)
+			res, err := api.AuthTest()
+			if err != nil {
+				panic(err)
+			} else {
+				log.Printf("Authenticated as: %s\n", res)
+			}
+
+			return api
+		},
+
+		users:      make(map[string]slack.User),
+		usersCache: usersCache,
+
+		channels:      make(map[string]slack.Channel),
+		channelsInv:   map[string]string{},
+		channelsCache: channelsCache,
+	}
+}
+
+func newWithXOXC(token, cookie string) *ApiProvider {
 	usersCache := os.Getenv("SLACK_MCP_USERS_CACHE")
 	if usersCache == "" {
 		usersCache = ".users_cache.json"
