@@ -87,7 +87,7 @@ Instead of using browser-based tokens (XOXC/XOXD), you can use a User OAuth toke
 3. Install the app to your workspace
 4. Copy the "User OAuth Token" (starts with `xoxp-`)
 
-> **Note**: You only need **either** XOXP token **or** both XOXC/XOXD tokens. XOXP user tokens are recommended for production use as they're more secure and don't require browser session extraction.
+> **Note**: You only need **either** XOXP token **or** both XOXC/XOXD tokens. XOXP user tokens are more secure and don't require browser session extraction.
 
 ### 2. Installation
 
@@ -106,7 +106,7 @@ If you have npm installed, this is the fastest way to get started with `slack-mc
 
 Open your `claude_desktop_config.json` and add the mcp server to the list of `mcpServers`:
 
-**Option 1: Using XOXP Token (Recommended)**
+**Option 1: Using XOXP Token**
 ``` json
 {
   "mcpServers": {
@@ -150,7 +150,7 @@ Open your `claude_desktop_config.json` and add the mcp server to the list of `mc
 <details>
 <summary>Or, stdio transport with docker.</summary>
 
-**Option 1: Using XOXP Token (Recommended)**
+**Option 1: Using XOXP Token**
 ```json
 {
   "mcpServers": {
