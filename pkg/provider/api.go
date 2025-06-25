@@ -36,7 +36,7 @@ type ApiProvider struct {
 }
 
 func New() *ApiProvider {
-	// Check for XOXP token first (Bot User OAuth)
+	// Check for XOXP token first (User OAuth)
 	xoxpToken := os.Getenv("SLACK_MCP_XOXP_TOKEN")
 	if xoxpToken != "" {
 		return newWithXOXP(xoxpToken)
@@ -47,7 +47,7 @@ func New() *ApiProvider {
 	xoxdToken := os.Getenv("SLACK_MCP_XOXD_TOKEN")
 	
 	if xoxcToken == "" || xoxdToken == "" {
-		panic("Authentication required: Either SLACK_MCP_XOXP_TOKEN (Bot User OAuth) or both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN (session-based) environment variables must be provided")
+		panic("Authentication required: Either SLACK_MCP_XOXP_TOKEN (User OAuth) or both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN (session-based) environment variables must be provided")
 	}
 
 	return newWithXOXC(xoxcToken, xoxdToken)
