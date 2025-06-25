@@ -11,8 +11,11 @@ This feature-rich Slack MCP Server has:
 - **Stealth mode**: Run the server without any additional permissions or bot installations.
 - **OAuth mode**: Use secure OAuth tokens for secure access without needing to refresh or extract tokens from the browser.
 - **Channel and thread support**: Fetch messages from channels and threads, including activity messages.
+- **Channel by name**: Fetch channels by their names, such as `#general`, not only but their ids.
 - **DM and Group DM support**: Retrieve direct messages and group direct messages.
+- **Embedded user information**: Embed user information in messages, for better context.
 - **Smart History**: Fetch messages with pagination by date (d1, 7d, 1m) or message count.
+- **Cache support**: Cache users and channels for faster access.
 - **Stdio and SSE transports**: Use the server with any MCP client that supports Stdio or SSE transports.
 - **Proxy support**: Configure the server to use a proxy for outgoing requests.
 
