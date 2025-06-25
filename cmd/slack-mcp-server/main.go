@@ -60,7 +60,7 @@ func newUsersWatcher(p *provider.ApiProvider) func() {
 	return func() {
 		log.Println("Caching users collection...")
 
-		if os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo" {
+		if os.Getenv("SLACK_MCP_XOXP_TOKEN") == "demo" || (os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo") {
 			log.Println("Demo credentials are set, skip.")
 			return
 		}
@@ -78,7 +78,7 @@ func newChannelsWatcher(p *provider.ApiProvider) func() {
 	return func() {
 		log.Println("Caching channels collection...")
 
-		if os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo" {
+		if os.Getenv("SLACK_MCP_XOXP_TOKEN") == "demo" || (os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo") {
 			log.Println("Demo credentials are set, skip.")
 			return
 		}

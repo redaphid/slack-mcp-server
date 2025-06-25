@@ -69,6 +69,26 @@ Token value is printed right after the executed command (it starts with
  - Press Ctrl+C or Cmd+C to copy it's value to clipboard.
  - Save it for later.
 
+#### Alternative: Using `SLACK_MCP_XOXP_TOKEN` (User OAuth)
+
+Instead of using browser-based tokens (XOXC/XOXD), you can use a User OAuth token:
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) and create a new app
+2. Under "OAuth & Permissions", add the following scopes:
+   - `channels:history` - View messages in public channels
+   - `channels:read` - View basic information about public channels
+   - `groups:history` - View messages in private channels
+   - `groups:read` - View basic information about private channels
+   - `im:history` - View messages in direct messages
+   - `im:read` - View basic information about direct messages
+   - `mpim:history` - View messages in group direct messages
+   - `mpim:read` - View basic information about group direct messages
+   - `users:read` - View people in a workspace
+3. Install the app to your workspace
+4. Copy the "User OAuth Token" (starts with `xoxp-`)
+
+> **Note**: You only need **either** XOXP token **or** both XOXC/XOXD tokens. XOXP user tokens are more secure and don't require browser session extraction.
+
 ### 2. Installation
 
 Choose one of these installation methods:
@@ -85,6 +105,28 @@ You can configure the MCP server using command line arguments and environment va
 If you have npm installed, this is the fastest way to get started with `slack-mcp-server` on Claude Desktop.
 
 Open your `claude_desktop_config.json` and add the mcp server to the list of `mcpServers`:
+
+**Option 1: Using XOXP Token**
+``` json
+{
+  "mcpServers": {
+    "slack": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "slack-mcp-server@latest",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "SLACK_MCP_XOXP_TOKEN": "xoxp-..."
+      }
+    }
+  }
+}
+```
+
+**Option 2: Using XOXC/XOXD Tokens**
 ``` json
 {
   "mcpServers": {
@@ -108,6 +150,32 @@ Open your `claude_desktop_config.json` and add the mcp server to the list of `mc
 <details>
 <summary>Or, stdio transport with docker.</summary>
 
+**Option 1: Using XOXP Token**
+```json
+{
+  "mcpServers": {
+    "slack": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "SLACK_MCP_XOXP_TOKEN",
+        "ghcr.io/korotovsky/slack-mcp-server",
+        "mcp-server",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "SLACK_MCP_XOXP_TOKEN": "xoxp-..."
+      }
+    }
+  }
+}
+```
+
+**Option 2: Using XOXC/XOXD Tokens**
 ```json
 {
   "mcpServers": {
