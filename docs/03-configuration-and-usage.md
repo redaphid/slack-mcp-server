@@ -8,6 +8,9 @@ If you have npm installed, this is the fastest way to get started with `slack-mc
 
 Open your `claude_desktop_config.json` and add the mcp server to the list of `mcpServers`:
 
+> [!WARNING]  
+> If you are using Enterprise Slack, you may set `SLACK_MCP_USER_AGENT` environment variable to match your browser's User-Agent string from where you extracted `xoxc` and `xoxd`. This is required for the server to work properly in some environments with higher security policies.
+
 **Option 1: Using XOXP Token**
 ``` json
 {
@@ -202,13 +205,14 @@ docker-compose up -d
 
 #### Environment Variables
 
-| Variable                       | Required ? | Default     | Description                                                                   |
-|--------------------------------|------------|-------------|-------------------------------------------------------------------------------|
-| `SLACK_MCP_XOXC_TOKEN`         | Yes        | `nil`       | Authentication data token field `token` from POST data field-set (`xoxc-...`) |
-| `SLACK_MCP_XOXD_TOKEN`         | Yes        | `nil`       | Authentication data token from cookie `d` (`xoxd-...`)                        |
-| `SLACK_MCP_SERVER_PORT`        | No         | `3001`      | Port for the MCP server to listen on                                          |
-| `SLACK_MCP_SERVER_HOST`        | No         | `127.0.0.1` | Host for the MCP server to listen on                                          |
-| `SLACK_MCP_SSE_API_KEY`        | No         | `nil`       | Authorization Bearer token when `transport` is `sse`                          |
-| `SLACK_MCP_PROXY`              | No         | `nil`       | Proxy URL for the MCP server to use                                           |
-| `SLACK_MCP_SERVER_CA`          | No         | `nil`       | Path to the CA certificate of the trust store                                 |
-| `SLACK_MCP_SERVER_CA_INSECURE` | No         | `false`     | Trust all insecure requests (NOT RECOMMENDED)                                 |
+| Variable                       | Required ? | Default     | Description                                                                                                                                                                                                                |
+|--------------------------------|------------|-------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SLACK_MCP_XOXC_TOKEN`         | Yes        | `nil`       | Authentication data token field `token` from POST data field-set (`xoxc-...`)                                                                                                                                              |
+| `SLACK_MCP_XOXD_TOKEN`         | Yes        | `nil`       | Authentication data token from cookie `d` (`xoxd-...`)                                                                                                                                                                     |
+| `SLACK_MCP_SERVER_PORT`        | No         | `3001`      | Port for the MCP server to listen on                                                                                                                                                                                       |
+| `SLACK_MCP_SERVER_HOST`        | No         | `127.0.0.1` | Host for the MCP server to listen on                                                                                                                                                                                       |
+| `SLACK_MCP_SSE_API_KEY`        | No         | `nil`       | Authorization Bearer token when `transport` is `sse`                                                                                                                                                                       |
+| `SLACK_MCP_PROXY`              | No         | `nil`       | Proxy URL for the MCP server to use                                                                                                                                                                                        |
+| `SLACK_MCP_USER_AGENT`         | No         | `nil`       | User-Agent to use by MCP transport, may be required when you are located within Enterprise Slack environments with stricter security policies so it must match your browser from where you copied `xoxd` and xoxc` values. |
+| `SLACK_MCP_SERVER_CA`          | No         | `nil`       | Path to the CA certificate of the trust store                                                                                                                                                                              |
+| `SLACK_MCP_SERVER_CA_INSECURE` | No         | `false`     | Trust all insecure requests (NOT RECOMMENDED)                                                                                                                                                                              |

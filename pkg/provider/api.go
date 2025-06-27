@@ -15,6 +15,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
+var defaultUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 var PubChanType = "public_channel"
 
@@ -45,7 +46,7 @@ func New() *ApiProvider {
 	// Fall back to XOXC/XOXD tokens (session-based)
 	xoxcToken := os.Getenv("SLACK_MCP_XOXC_TOKEN")
 	xoxdToken := os.Getenv("SLACK_MCP_XOXD_TOKEN")
-	
+
 	if xoxcToken == "" || xoxdToken == "" {
 		panic("Authentication required: Either SLACK_MCP_XOXP_TOKEN (User OAuth) or both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN (session-based) environment variables must be provided")
 	}
@@ -334,10 +335,15 @@ func withHTTPClientOption(cookie string) func(c *slack.Client) {
 			},
 		}
 
+		userAgent := defaultUA
+		if os.Getenv("SLACK_MCP_USER_AGENT") != "" {
+			userAgent = os.Getenv("SLACK_MCP_USER_AGENT")
+		}
+
 		client := &http.Client{
 			Transport: transport.New(
 				customHTTPTransport,
-				"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+				userAgent,
 				cookie,
 			),
 		}
