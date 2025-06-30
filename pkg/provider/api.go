@@ -108,6 +108,7 @@ func newWithXOXP(authProvider auth.ValueAuth) *ApiProvider {
 			if err != nil {
 				panic(err)
 			} else {
+				ap.authProvider = &authProvider
 				ap.authResponse = &slack2.AuthTestResponse{
 					URL:          res.URL,
 					Team:         res.Team,
@@ -309,6 +310,7 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 		if ap.authResponse.EnterpriseID == "" {
 			chans1, nextcur, err = clientGeneric.GetConversationsContext(ctx, params)
 			if err != nil {
+				log.Printf("Failed to fetch channels: %v", err)
 				break
 			}
 			for _, channel := range chans1 {
@@ -334,9 +336,14 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 		} else {
 			chans2, _, err = clientE.GetConversationsContext(ctx, nil)
 			if err != nil {
+				log.Printf("Failed to fetch channels: %v", err)
 				break
 			}
 			for _, channel := range chans2 {
+				if params.ExcludeArchived && channel.IsArchived {
+					continue
+				}
+
 				ch := mapChannel(
 					channel.ID,
 					channel.Name,
