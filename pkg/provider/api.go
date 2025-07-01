@@ -367,7 +367,7 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 
 		for _, ch := range chans {
 			ap.channels[ch.ID] = ch
-			ap.channelsInv["#"+ch.Name] = ch.ID
+			ap.channelsInv[ch.Name] = ch.ID
 		}
 
 		if nextcur == "" {
@@ -496,7 +496,7 @@ func mapChannel(
 	isIM, isMpIM, isPrivate bool,
 	usersMap map[string]slack.User,
 ) Channel {
-	channelName := "#" + name
+	channelName := name
 	finalPurpose := purpose
 	finalTopic := topic
 	finalMemberCount := numMembers
@@ -526,6 +526,8 @@ func mapChannel(
 			finalPurpose = "Group DM with " + strings.Join(userNames, ", ")
 			finalTopic = ""
 		}
+	} else {
+		channelName = "#" + nameNormalized
 	}
 
 	return Channel{

@@ -181,7 +181,7 @@ func (ch *ConversationsHandler) parseParams(request mcp.CallToolRequest) (*conve
 		}
 	}
 
-	if strings.HasPrefix(channel, "#") {
+	if strings.HasPrefix(channel, "#") || strings.HasPrefix(channel, "@") {
 		channelsMaps := ch.apiProvider.ProvideChannelsMaps()
 		chn, ok := channelsMaps.ChannelsInv[channel]
 		if !ok {
