@@ -8,16 +8,14 @@ Model Context Protocol (MCP) server for Slack Workspaces. The most powerful MCP 
 > If you appreciate the work our [contributors](https://github.com/korotovsky/slack-mcp-server/graphs/contributors) have put into this project, please consider giving the repository a star.
 
 This feature-rich Slack MCP Server has:
-- **Stealth mode**: Run the server without any additional permissions or bot installations.
-- **OAuth mode**: Use secure OAuth tokens for secure access without needing to refresh or extract tokens from the browser.
-- **Channel and thread support**: Fetch messages from channels and threads, including activity messages.
-- **Channel by name**: Fetch channels by their names, such as `#general`, not only but their ids.
+- **Stealth and OAuth Modes**: Run the server without requiring additional permissions or bot installations (stealth mode), or use secure OAuth tokens for access without needing to refresh or extract tokens from the browser (OAuth mode).
+- **Enterprise Workspaces Support**: Possibility to integrate with Enterprise Slack setups.
+- **Channel and Thread Support with `#Name` `@Lookup`**: Fetch messages from channels and threads, including activity messages, and retrieve channels using their names (e.g., #general) as well as their IDs.
 - **DM and Group DM support**: Retrieve direct messages and group direct messages.
 - **Embedded user information**: Embed user information in messages, for better context.
 - **Smart History**: Fetch messages with pagination by date (d1, 7d, 1m) or message count.
 - **Cache support**: Cache users and channels for faster access.
-- **Stdio and SSE transports**: Use the server with any MCP client that supports Stdio or SSE transports.
-- **Proxy support**: Configure the server to use a proxy for outgoing requests.
+- **Stdio/SSE Transports & Proxy Support**: Use the server with any MCP client that supports Stdio or SSE transports, and configure it to route outgoing requests through a proxy if needed.
 
 ### Feature Demo
 

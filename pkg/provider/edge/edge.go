@@ -255,18 +255,10 @@ func (cl *Client) ParseResponse(req any, r *http.Response) error {
 		return fmt.Errorf("error: status code: %s", r.Status)
 	}
 	defer r.Body.Close()
-
-	// Read the body into a byte slice
 	bodyBytes, err := io.ReadAll(cl.recorder(r.Body))
 	if err != nil {
 		return err
 	}
-
-	// Convert body to string and print it
-	bodyStr := string(bodyBytes)
-	fmt.Println("Raw response body:", bodyStr)
-
-	// Decode the body into the expected struct
 	if err := json.Unmarshal(bodyBytes, req); err != nil {
 		return err
 	}
