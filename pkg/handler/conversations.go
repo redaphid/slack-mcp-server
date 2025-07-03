@@ -51,7 +51,7 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		return nil, err
 	}
 
-	api, err := ch.apiProvider.Provide()
+	api, err := ch.apiProvider.ProvideGeneric()
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context,
 		return nil, errors.New("thread_ts must be a string")
 	}
 
-	api, err := ch.apiProvider.Provide()
+	api, err := ch.apiProvider.ProvideGeneric()
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (ch *ConversationsHandler) parseParams(request mcp.CallToolRequest) (*conve
 		}
 	}
 
-	if strings.HasPrefix(channel, "#") {
+	if strings.HasPrefix(channel, "#") || strings.HasPrefix(channel, "@") {
 		channelsMaps := ch.apiProvider.ProvideChannelsMaps()
 		chn, ok := channelsMaps.ChannelsInv[channel]
 		if !ok {

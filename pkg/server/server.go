@@ -16,7 +16,7 @@ type MCPServer struct {
 func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 	s := server.NewMCPServer(
 		"Slack MCP Server",
-		"1.1.15",
+		"1.1.17",
 		server.WithLogging(),
 		server.WithRecovery(),
 	)
@@ -24,10 +24,10 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 	conversationsHandler := handler.NewConversationsHandler(provider)
 
 	s.AddTool(mcp.NewTool("conversations_history",
-		mcp.WithDescription("Get messages from the channel by channel_id, the last row/column in the response is used as 'cursor' parameter for pagination if not empty"),
+		mcp.WithDescription("Get messages from the channel (or DM) by channel_id, the last row/column in the response is used as 'cursor' parameter for pagination if not empty"),
 		mcp.WithString("channel_id",
 			mcp.Required(),
-			mcp.Description("ID of the channel in format Cxxxxxxxxxx or its name starting with #... aka #general."),
+			mcp.Description("    - `channel_id` (string): ID of the channel in format Cxxxxxxxxxx or its name starting with #... or @... aka #general or @username_dm."),
 		),
 		mcp.WithBoolean("include_activity_messages",
 			mcp.Description("If true, the response will include activity messages such as 'channel_join' or 'channel_leave'. Default is boolean false."),
@@ -46,7 +46,7 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 		mcp.WithDescription("Get a thread of messages posted to a conversation by channelID and thread_ts, the last row/column in the response is used as 'cursor' parameter for pagination if not empty"),
 		mcp.WithString("channel_id",
 			mcp.Required(),
-			mcp.Description("ID of the channel in format Cxxxxxxxxxx or its name starting with #... aka #general."),
+			mcp.Description("ID of the channel in format Cxxxxxxxxxx or its name starting with #... or @... aka #general or @username_dm."),
 		),
 		mcp.WithString("thread_ts",
 			mcp.Required(),
