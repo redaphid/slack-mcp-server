@@ -3,7 +3,7 @@
 Model Context Protocol (MCP) server for Slack Workspaces. The most powerful MCP Slack server — supports Stdio and SSE transports, proxy settings, DMs, Group DMs, Smart History fetch (by date or count), may work via OAuth or in complete stealth mode with no permissions and scopes in Workspace 😏.
 
 > [!IMPORTANT]  
-> We need your support! Each month, over 10,000 engineers visit this repository, and more than 2,000 are already using it.
+> We need your support! Each month, over 30,000 engineers visit this repository, and more than 9,000 are already using it.
 > 
 > If you appreciate the work our [contributors](https://github.com/korotovsky/slack-mcp-server/graphs/contributors) have put into this project, please consider giving the repository a star.
 
