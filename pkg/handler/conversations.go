@@ -35,6 +35,12 @@ type conversationParams struct {
 	activity bool
 }
 
+type addMessageParams struct {
+	channel  string
+	threadTs string
+	text     string
+}
+
 type ConversationsHandler struct {
 	apiProvider *provider.ApiProvider
 }
@@ -45,8 +51,50 @@ func NewConversationsHandler(apiProvider *provider.ApiProvider) *ConversationsHa
 	}
 }
 
+func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	params, err := ch.parseParamsToolAddMessage(request)
+	if err != nil {
+		return nil, err
+	}
+
+	api, err := ch.apiProvider.ProvideGeneric()
+	if err != nil {
+		return nil, err
+	}
+
+	var options []slack.MsgOption
+	options = append(options, slack.MsgOptionText(params.text, false))
+
+	if params.threadTs != "" {
+		options = append(options, slack.MsgOptionTS(params.threadTs))
+	}
+
+	respChannel, respTimestamp, err := api.PostMessageContext(ctx, params.channel, options...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	historyParams := slack.GetConversationHistoryParameters{
+		ChannelID: respChannel,
+		Limit:     1,
+		Oldest:    respTimestamp,
+		Latest:    respTimestamp,
+		Inclusive: true,
+	}
+
+	history, err := api.GetConversationHistoryContext(ctx, &historyParams)
+	if err != nil {
+		return nil, err
+	}
+
+	messages := ch.convertMessages(history.Messages, historyParams.ChannelID, false)
+
+	return marshalMessagesToCSV(messages)
+}
+
 func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	params, err := ch.parseParams(request)
+	params, err := ch.parseParamsToolConversations(request)
 	if err != nil {
 		return nil, err
 	}
@@ -76,11 +124,11 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		messages[len(messages)-1].Cursor = history.ResponseMetaData.NextCursor
 	}
 
-	return ch.marshalMessagesToCSV(messages)
+	return marshalMessagesToCSV(messages)
 }
 
 func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	params, err := ch.parseParams(request)
+	params, err := ch.parseParamsToolConversations(request)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +164,7 @@ func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context,
 		messages[len(messages)-1].Cursor = nextCursor
 	}
 
-	return ch.marshalMessagesToCSV(messages)
+	return marshalMessagesToCSV(messages)
 }
 
 func (ch *ConversationsHandler) convertMessages(slackMessages []slack.Message, channel string, includeActivity bool) []Message {
@@ -144,15 +192,7 @@ func (ch *ConversationsHandler) convertMessages(slackMessages []slack.Message, c
 	return messages
 }
 
-func (ch *ConversationsHandler) marshalMessagesToCSV(messages []Message) (*mcp.CallToolResult, error) {
-	csvBytes, err := gocsv.MarshalBytes(&messages)
-	if err != nil {
-		return nil, err
-	}
-	return mcp.NewToolResultText(string(csvBytes)), nil
-}
-
-func (ch *ConversationsHandler) parseParams(request mcp.CallToolRequest) (*conversationParams, error) {
+func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToolRequest) (*conversationParams, error) {
 	channel := request.GetString("channel_id", "")
 	if channel == "" {
 		return nil, errors.New("channel_id must be a string")
@@ -199,6 +239,47 @@ func (ch *ConversationsHandler) parseParams(request mcp.CallToolRequest) (*conve
 		cursor:   cursor,
 		activity: activity,
 	}, nil
+}
+
+func (ch *ConversationsHandler) parseParamsToolAddMessage(request mcp.CallToolRequest) (*addMessageParams, error) {
+	channel := request.GetString("channel_id", "")
+	if channel == "" {
+		return nil, errors.New("channel_id must be a string")
+	}
+
+	if strings.HasPrefix(channel, "#") || strings.HasPrefix(channel, "@") {
+		channelsMaps := ch.apiProvider.ProvideChannelsMaps()
+		chn, ok := channelsMaps.ChannelsInv[channel]
+		if !ok {
+			return nil, fmt.Errorf("channel %q not found", channel)
+		}
+
+		channel = channelsMaps.Channels[chn].ID
+	}
+
+	threadTs := request.GetString("thread_ts", "")
+	if threadTs != "" && !strings.Contains(threadTs, ".") {
+		return nil, errors.New("thread_ts must be a valid timestamp in format 1234567890.123456")
+	}
+
+	msgText := request.GetString("text", "")
+	if msgText == "" {
+		return nil, errors.New("text must be a string")
+	}
+
+	return &addMessageParams{
+		channel:  channel,
+		threadTs: threadTs,
+		text:     msgText,
+	}, nil
+}
+
+func marshalMessagesToCSV(messages []Message) (*mcp.CallToolResult, error) {
+	csvBytes, err := gocsv.MarshalBytes(&messages)
+	if err != nil {
+		return nil, err
+	}
+	return mcp.NewToolResultText(string(csvBytes)), nil
 }
 
 func getUserInfo(userID string, usersMap map[string]slack.User) (userName, realName string) {

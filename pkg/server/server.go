@@ -16,7 +16,7 @@ type MCPServer struct {
 func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 	s := server.NewMCPServer(
 		"Slack MCP Server",
-		"1.1.17",
+		"1.1.18",
 		server.WithLogging(),
 		server.WithRecovery(),
 	)
@@ -64,6 +64,20 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 			mcp.Description("Limit of messages to fetch in format of maximum ranges of time (e.g. 1d - 1 day, 30d - 30 days, 90d - 90 days which is a default limit for free tier history) or number of messages (e.g. 50). Must be empty when 'cursor' is provided."),
 		),
 	), conversationsHandler.ConversationsRepliesHandler)
+
+	s.AddTool(mcp.NewTool("conversations_add_message",
+		mcp.WithDescription("Add a message to a public channel, private channel, or direct message (DM, or IM) conversation by channel_id and thread_ts."),
+		mcp.WithString("channel_id",
+			mcp.Required(),
+			mcp.Description("ID of the channel in format Cxxxxxxxxxx or its name starting with #... or @... aka #general or @username_dm."),
+		),
+		mcp.WithString("thread_ts",
+			mcp.Description("Unique identifier of either a thread’s parent message or a message in the thread_ts must be the timestamp in format 1234567890.123456 of an existing message with 0 or more replies. Optional, if not provided the message will be added to the channel itself, otherwise it will be added to the thread."),
+		),
+		mcp.WithString("text",
+			mcp.Description("Text of the message to be added to the conversation. Must be a non-empty string."),
+		),
+	), conversationsHandler.ConversationsAddMessageHandler)
 
 	channelsHandler := handler.NewChannelsHandler(provider)
 
