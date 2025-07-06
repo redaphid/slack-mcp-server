@@ -11,9 +11,11 @@ This feature-rich Slack MCP Server has:
 - **Stealth and OAuth Modes**: Run the server without requiring additional permissions or bot installations (stealth mode), or use secure OAuth tokens for access without needing to refresh or extract tokens from the browser (OAuth mode).
 - **Enterprise Workspaces Support**: Possibility to integrate with Enterprise Slack setups.
 - **Channel and Thread Support with `#Name` `@Lookup`**: Fetch messages from channels and threads, including activity messages, and retrieve channels using their names (e.g., #general) as well as their IDs.
+- **Smart History**: Fetch messages with pagination by date (d1, 7d, 1m) or message count.
+- **Search Messages**: Search messages in channels, threads, and DMs using various filters like date, user, and content.
+- **Safe Message Posting**: The `conversations_add_message` tool is disabled by default for safety. Enable it via an environment variable, with optional channel restrictions.
 - **DM and Group DM support**: Retrieve direct messages and group direct messages.
 - **Embedded user information**: Embed user information in messages, for better context.
-- **Smart History**: Fetch messages with pagination by date (d1, 7d, 1m) or message count.
 - **Cache support**: Cache users and channels for faster access.
 - **Stdio/SSE Transports & Proxy Support**: Use the server with any MCP client that supports Stdio or SSE transports, and configure it to route outgoing requests through a proxy if needed.
 
@@ -42,6 +44,9 @@ Get a thread of messages posted to a conversation by channelID and `thread_ts`, 
 
 ### 3. conversations_add_message
 Add a message to a public channel, private channel, or direct message (DM, or IM) conversation by channel_id and thread_ts.
+
+> **Note:** Posting messages is disabled by default for safety. To enable, set the `SLACK_MCP_ENABLE_ADD_MESSAGE` environment variable. If set to a comma-separated list of channel IDs, posting is enabled only for those specific channels. See the Environment Variables section below for details.
+
 - **Parameters:**
   - `channel_id` (string, required): ID of the channel in format `Cxxxxxxxxxx` or its name starting with `#...` or `@...` aka `#general` or `@username_dm`.
   - `thread_ts` (string, optional): Unique identifier of either a thread’s parent message or a message in the thread_ts must be the timestamp in format `1234567890.123456` of an existing message with 0 or more replies. Optional, if not provided the message will be added to the channel itself, otherwise it will be added to the thread.
@@ -79,18 +84,19 @@ Get list of channels
 
 ### Environment Variables (Quick Reference)
 
-| Variable                       | Required? | Default     | Description                                              |
-|--------------------------------|-----------|-------------|----------------------------------------------------------|
-| `SLACK_MCP_XOXC_TOKEN`         | Yes*      | `nil`       | Slack browser token (`xoxc-...`)                         |
-| `SLACK_MCP_XOXD_TOKEN`         | Yes*      | `nil`       | Slack browser cookie `d` (`xoxd-...`)                    |
-| `SLACK_MCP_XOXP_TOKEN`         | Yes*      | `nil`       | User OAuth token (`xoxp-...`) — alternative to xoxc/xoxd |
-| `SLACK_MCP_SERVER_PORT`        | No        | `3001`      | Port for the MCP server                                  |
-| `SLACK_MCP_SERVER_HOST`        | No        | `127.0.0.1` | Host for the MCP server                                  |
-| `SLACK_MCP_SSE_API_KEY`        | No        | `nil`       | Bearer token for SSE transport                           |
-| `SLACK_MCP_PROXY`              | No        | `nil`       | Proxy URL for outgoing requests                          |
-| `SLACK_MCP_USER_AGENT`         | No        | `nil`       | Custom User-Agent (for Enterprise Slack environments)    |
-| `SLACK_MCP_SERVER_CA`          | No        | `nil`       | Path to CA certificate                                   |
-| `SLACK_MCP_SERVER_CA_INSECURE` | No        | `false`     | Trust all insecure requests (NOT RECOMMENDED)            |
+| Variable                       | Required? | Default     | Description                                                                                                                                                              |
+|--------------------------------|-----------|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SLACK_MCP_XOXC_TOKEN`         | Yes*      | `nil`       | Slack browser token (`xoxc-...`)                                                                                                                                         |
+| `SLACK_MCP_XOXD_TOKEN`         | Yes*      | `nil`       | Slack browser cookie `d` (`xoxd-...`)                                                                                                                                    |
+| `SLACK_MCP_XOXP_TOKEN`         | Yes*      | `nil`       | User OAuth token (`xoxp-...`) — alternative to xoxc/xoxd                                                                                                                 |
+| `SLACK_MCP_SERVER_PORT`        | No        | `3001`      | Port for the MCP server                                                                                                                                                  |
+| `SLACK_MCP_SERVER_HOST`        | No        | `127.0.0.1` | Host for the MCP server                                                                                                                                                  |
+| `SLACK_MCP_SSE_API_KEY`        | No        | `nil`       | Bearer token for SSE transport                                                                                                                                           |
+| `SLACK_MCP_PROXY`              | No        | `nil`       | Proxy URL for outgoing requests                                                                                                                                          |
+| `SLACK_MCP_USER_AGENT`         | No        | `nil`       | Custom User-Agent (for Enterprise Slack environments)                                                                                                                    |
+| `SLACK_MCP_SERVER_CA`          | No        | `nil`       | Path to CA certificate                                                                                                                                                   |
+| `SLACK_MCP_SERVER_CA_INSECURE` | No        | `false`     | Trust all insecure requests (NOT RECOMMENDED)                                                                                                                            |
+| `SLACK_MCP_ENABLE_ADD_MESSAGE` | No        | `nil`       | Enable posting messages via conversations_add_message. Set to `true` to allow all, or a comma-separated list of channel IDs to restrict. Posting is disabled by default. |
 
 *You need either `xoxp` **or** both `xoxc`/`xoxd` tokens for authentication.
 
