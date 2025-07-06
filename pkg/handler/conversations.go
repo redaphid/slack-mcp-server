@@ -234,7 +234,9 @@ func (ch *ConversationsHandler) ConversationsSearchHandler(ctx context.Context, 
 	messages := ch.convertMessagesFromSearch(messagesRes.Matches)
 
 	if len(messages) > 0 && ((messagesRes.Pagination.PerPage * messagesRes.Pagination.PageCount) < messagesRes.Pagination.TotalCount) {
-		messages[len(messages)-1].Cursor = base64.StdEncoding.EncodeToString([]byte(string(rune(messagesRes.Pagination.Page + 1))))
+		nextCursor := fmt.Sprintf("page:%d", messagesRes.Pagination.PageCount+1)
+
+		messages[len(messages)-1].Cursor = base64.StdEncoding.EncodeToString([]byte(nextCursor))
 	}
 
 	return marshalMessagesToCSV(messages)
@@ -464,7 +466,11 @@ func (ch *ConversationsHandler) parseParamsToolSearch(req mcp.CallToolRequest) (
 		if err != nil {
 			return nil, fmt.Errorf("invalid cursor: %v", err)
 		}
-		page, err = strconv.Atoi(string(decodedCursor))
+		partOfCursor := strings.Split(string(decodedCursor), ":")
+		if len(partOfCursor) != 2 {
+			return nil, fmt.Errorf("invalid cursor: %v", cursor)
+		}
+		page, err = strconv.Atoi(partOfCursor[1])
 		if err != nil || page < 1 {
 			return nil, fmt.Errorf("invalid cursor page: %v", err)
 		}
