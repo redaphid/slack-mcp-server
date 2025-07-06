@@ -19,9 +19,13 @@ This feature-rich Slack MCP Server has:
 - **Cache support**: Cache users and channels for faster access.
 - **Stdio/SSE Transports & Proxy Support**: Use the server with any MCP client that supports Stdio or SSE transports, and configure it to route outgoing requests through a proxy if needed.
 
-### Feature Demo
+### Analytics Demo
 
-![ezgif-316311ee04f444](https://github.com/user-attachments/assets/35dc9895-e695-4e56-acdc-1a46d6520ba0)
+![Analytics](images/feature-1.gif)
+
+### Add Message Demo
+
+![Add Message](images/feature-2.gif)
 
 ## Tools
 
