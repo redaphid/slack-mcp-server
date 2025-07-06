@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/korotovsky/slack-mcp-server/pkg/text"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/slack-go/slack"
+	slackGoUtil "github.com/takara2314/slack-go-util"
 )
 
 type Message struct {
@@ -56,9 +58,10 @@ type searchParams struct {
 }
 
 type addMessageParams struct {
-	channel  string
-	threadTs string
-	text     string
+	channel     string
+	threadTs    string
+	text        string
+	contentType string
 }
 
 type ConversationsHandler struct {
@@ -83,10 +86,27 @@ func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Conte
 	}
 
 	var options []slack.MsgOption
-	options = append(options, slack.MsgOptionText(params.text, false))
 
 	if params.threadTs != "" {
 		options = append(options, slack.MsgOptionTS(params.threadTs))
+	}
+
+	if params.contentType == "text/plain" {
+		options = append(options, slack.MsgOptionDisableMarkdown())
+		options = append(options, slack.MsgOptionText(params.text, false))
+	} else if params.contentType == "text/markdown" {
+		blocks, err := slackGoUtil.ConvertMarkdownTextToBlocks(params.text)
+		if err == nil {
+			options = append(options, slack.MsgOptionBlocks(blocks...))
+		} else {
+			// fallback to plain text if conversion fails
+			log.Printf("Markdown parsing error: %s\n", err.Error())
+
+			options = append(options, slack.MsgOptionDisableMarkdown())
+			options = append(options, slack.MsgOptionText(params.text, false))
+		}
+	} else {
+		return nil, errors.New("content_type must be either 'text/plain' or 'text/markdown'")
 	}
 
 	respChannel, respTimestamp, err := api.PostMessageContext(ctx, params.channel, options...)
@@ -355,15 +375,21 @@ func (ch *ConversationsHandler) parseParamsToolAddMessage(request mcp.CallToolRe
 		return nil, errors.New("thread_ts must be a valid timestamp in format 1234567890.123456")
 	}
 
-	msgText := request.GetString("text", "")
+	msgText := request.GetString("payload", "")
 	if msgText == "" {
 		return nil, errors.New("text must be a string")
 	}
 
+	contentType := request.GetString("content_type", "text/markdown")
+	if contentType != "text/plain" && contentType != "text/markdown" {
+		return nil, errors.New("content_type must be either 'text/plain' or 'text/markdown'")
+	}
+
 	return &addMessageParams{
-		channel:  channel,
-		threadTs: threadTs,
-		text:     msgText,
+		channel:     channel,
+		threadTs:    threadTs,
+		text:        msgText,
+		contentType: contentType,
 	}, nil
 }
 
