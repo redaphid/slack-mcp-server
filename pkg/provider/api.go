@@ -148,7 +148,7 @@ func newWithXOXC(authProvider auth.ValueAuth) *ApiProvider {
 
 	channelsCache := os.Getenv("SLACK_MCP_CHANNELS_CACHE")
 	if channelsCache == "" {
-		channelsCache = ".channels_cache.json"
+		channelsCache = ".channels_cache_v2.json"
 	}
 
 	return &ApiProvider{

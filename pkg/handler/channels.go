@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -54,14 +53,11 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 
 	cursor := request.GetString("cursor", "")
 	limit := request.GetInt("limit", 0)
-	if limit == 0 && cursor == "" {
-		limit = 100
-	}
 	if limit == 0 {
 		limit = 100
 	}
-	if limit >= 1000 {
-		return nil, fmt.Errorf("limit must be less than 1000, got %d", limit)
+	if limit > 999 {
+		limit = 999
 	}
 
 	var (
