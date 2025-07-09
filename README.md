@@ -29,7 +29,7 @@ This feature-rich Slack MCP Server has:
 
 ## Tools
 
-### 1. `conversations_history`:
+### 1. conversations_history:
 Get messages from the channel (or DM) by channel_id, the last row/column in the response is used as 'cursor' parameter for pagination if not empty
 - **Parameters:**
   - `channel_id` (string, required):     - `channel_id` (string): ID of the channel in format Cxxxxxxxxxx or its name starting with `#...` or `@...` aka `#general` or `@username_dm`.
@@ -37,7 +37,7 @@ Get messages from the channel (or DM) by channel_id, the last row/column in the 
   - `cursor` (string, optional): Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request.
   - `limit` (string, default: "1d"): Limit of messages to fetch in format of maximum ranges of time (e.g. 1d - 1 day, 30d - 30 days, 90d - 90 days which is a default limit for free tier history) or number of messages (e.g. 50). Must be empty when 'cursor' is provided.
 
-### 2. `conversations_replies`:
+### 2. conversations_replies:
 Get a thread of messages posted to a conversation by channelID and `thread_ts`, the last row/column in the response is used as `cursor` parameter for pagination if not empty.
 - **Parameters:**
   - `channel_id` (string, required): ID of the channel in format `Cxxxxxxxxxx` or its name starting with `#...` or `@...` aka `#general` or `@username_dm`.
@@ -73,7 +73,7 @@ Search messages in a public channel, private channel, or direct message (DM, or 
   - `cursor` (string, default: ""): Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request.
   - `limit` (number, default: 20): The maximum number of items to return. Must be an integer between 1 and 100.
 
-### 5. `channels_list`:
+### 5. channels_list:
 Get list of channels
 - **Parameters:**
   - `channel_types` (string, required): Comma-separated channel types. Allowed values: `mpim`, `im`, `public_channel`, `private_channel`. Example: `public_channel,private_channel,im`
