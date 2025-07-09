@@ -242,6 +242,31 @@ func (ch *ConversationsHandler) ConversationsSearchHandler(ctx context.Context, 
 	return marshalMessagesToCSV(messages)
 }
 
+func isChannelAllowed(channel string) bool {
+	config := os.Getenv("SLACK_MCP_ADD_MESSAGE_TOOL")
+	if config == "" || config == "true" || config == "1" {
+		return true
+	}
+
+	items := strings.Split(config, ",")
+	isNegated := strings.HasPrefix(strings.TrimSpace(items[0]), "!")
+
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if isNegated {
+			if strings.TrimPrefix(item, "!") == channel {
+				return false
+			}
+		} else {
+			if item == channel {
+				return true
+			}
+		}
+	}
+
+	return !isNegated
+}
+
 func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack.Message, channel string, includeActivity bool) []Message {
 	usersMap := ch.apiProvider.ProvideUsersMap()
 	var messages []Message
@@ -339,9 +364,9 @@ func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToo
 }
 
 func (ch *ConversationsHandler) parseParamsToolAddMessage(request mcp.CallToolRequest) (*addMessageParams, error) {
-	isToolAllowed := os.Getenv("SLACK_MCP_ADD_MESSAGE_TOOL")
-	if isToolAllowed == "" {
-		return nil, errors.New("by default, the conversations_add_message tool is disabled to guard Slack workspaces against accidental spamming. To enable it, set the SLACK_MCP_ADD_MESSAGE_TOOL environment variable to true, 1, or comma separated list of channels to limit where the MCP can post messages, e.g. 'SLACK_MCP_ADD_MESSAGE_TOOL=C1234567890,D0987654321' or 'SLACK_MCP_ADD_MESSAGE_TOOL=true' for all channels and DMs")
+	toolConfig := os.Getenv("SLACK_MCP_ADD_MESSAGE_TOOL")
+	if toolConfig == "" {
+		return nil, errors.New("by default, the conversations_add_message tool is disabled to guard Slack workspaces against accidental spamming. To enable it, set the SLACK_MCP_ADD_MESSAGE_TOOL environment variable to true, 1, or comma separated list of channels to limit where the MCP can post messages, e.g. 'SLACK_MCP_ADD_MESSAGE_TOOL=C1234567890,D0987654321', 'SLACK_MCP_ADD_MESSAGE_TOOL=!C1234567890' to enable all except one or 'SLACK_MCP_ADD_MESSAGE_TOOL=true' for all channels and DMs")
 	}
 
 	channel := request.GetString("channel_id", "")
@@ -359,17 +384,8 @@ func (ch *ConversationsHandler) parseParamsToolAddMessage(request mcp.CallToolRe
 		channel = channelsMaps.Channels[chn].ID
 	}
 
-	if strings.HasPrefix(isToolAllowed, "C") || strings.HasPrefix(isToolAllowed, "D") {
-		whitelistedChannels := strings.Split(isToolAllowed, ",")
-		found := false
-		for _, whitelistedChannel := range whitelistedChannels {
-			if whitelistedChannel == channel {
-				found = true
-			}
-		}
-		if !found {
-			return nil, fmt.Errorf("conversations_add_message tool is not allowed for channel %q, only whitelisted channels are allowed: %s", channel, isToolAllowed)
-		}
+	if !isChannelAllowed(channel) {
+		return nil, fmt.Errorf("conversations_add_message tool is not allowed for channel %q, applied policy: %s", channel, toolConfig)
 	}
 
 	threadTs := request.GetString("thread_ts", "")

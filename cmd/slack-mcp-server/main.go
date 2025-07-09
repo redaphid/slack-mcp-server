@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/korotovsky/slack-mcp-server/pkg/server"
@@ -19,6 +21,11 @@ func main() {
 	flag.StringVar(&transport, "t", "stdio", "Transport type (stdio or sse)")
 	flag.StringVar(&transport, "transport", "stdio", "Transport type (stdio or sse)")
 	flag.Parse()
+
+	err := validateToolConfig(os.Getenv("SLACK_MCP_ADD_MESSAGE_TOOL"))
+	if err != nil {
+		log.Fatalf("error in SLACK_MCP_ADD_MESSAGE_TOOL: %v", err)
+	}
 
 	p := provider.New()
 
@@ -92,4 +99,32 @@ func newChannelsWatcher(p *provider.ApiProvider) func() {
 
 		log.Println("Channels cached successfully.")
 	}
+}
+
+func validateToolConfig(config string) error {
+	if config == "" || config == "true" || config == "1" {
+		return nil
+	}
+
+	items := strings.Split(config, ",")
+	hasNegated := false
+	hasPositive := false
+
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		if strings.HasPrefix(item, "!") {
+			hasNegated = true
+		} else {
+			hasPositive = true
+		}
+	}
+
+	if hasNegated && hasPositive {
+		return fmt.Errorf("cannot mix allowed and disallowed (! prefixed) channels")
+	}
+
+	return nil
 }
