@@ -36,12 +36,13 @@ Instead of using browser-based tokens (`xoxc`/`xoxd`), you can use a User OAuth 
     - `groups:read` - View basic information about private channels
     - `im:history` - View messages in direct messages
     - `im:read` - View basic information about direct messages
+    - `im:write` - Start direct messages with people on a user’s behalf
     - `mpim:history` - View messages in group direct messages
     - `mpim:read` - View basic information about group direct messages
-    - `users:read` - View people in a workspace
-    - `im:write` - Start direct messages with people on a user’s behalf
-    - `chat:write` - Send messages on a user’s behalf
     - `mpim:write` - Start group direct messages with people on a user’s behalf
+    - `users:read` - View people in a workspace
+    - `chat:write` - Send messages on a user’s behalf
+    - `search:read` - Search a workspace’s content
 
 3. Install the app to your workspace
 4. Copy the "User OAuth Token" (starts with `xoxp-`)
