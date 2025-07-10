@@ -34,13 +34,13 @@ Instead of using browser-based tokens (`xoxc`/`xoxd`), you can use a User OAuth 
     - `channels:read` - View basic information about public channels
     - `groups:history` - View messages in private channels
     - `groups:read` - View basic information about private channels
-    - `im:history` - View messages in direct messages. (new since `v1.1.18`)
+    - `im:history` - View messages in direct messages.
     - `im:read` - View basic information about direct messages
-    - `im:write` - Start direct messages with people on a user’s behalf
+    - `im:write` - Start direct messages with people on a user’s behalf (new since `v1.1.18`)
     - `mpim:history` - View messages in group direct messages
     - `mpim:read` - View basic information about group direct messages
-    - `mpim:write` - Start group direct messages with people on a user’s behalf
-    - `users:read` - View people in a workspace. (new since `v1.1.18`)
+    - `mpim:write` - Start group direct messages with people on a user’s behalf (new since `v1.1.18`)
+    - `users:read` - View people in a workspace.
     - `chat:write` - Send messages on a user’s behalf. (new since `v1.1.18`)
     - `search:read` - Search a workspace’s content. (new since `v1.1.18`)
 
