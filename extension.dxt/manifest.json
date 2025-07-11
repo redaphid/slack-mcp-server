@@ -89,7 +89,7 @@
       "type": "string",
       "title": "Value for users_cache",
       "description": "Path to the users cache file.",
-      "default": ".users_cache.json",
+      "default": "${__dirname}/.users_cache.json",
       "sensitive": false,
       "required": false
     },
@@ -97,7 +97,7 @@
       "type": "string",
       "title": "Value for channels_cache",
       "description": "Path to the channels cache file.",
-      "default": ".channels_cache.json",
+      "default": "${__dirname}/.channels_cache.json",
       "sensitive": false,
       "required": false
     }
