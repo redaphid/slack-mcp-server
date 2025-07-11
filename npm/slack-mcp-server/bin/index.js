@@ -17,7 +17,7 @@ const resolveBinaryPath = () => {
         const binary = BINARY_MAP[`${process.platform}_${process.arch}`];
 
         if (process.env.SLACK_MCP_DXT) {
-            return require.resolve(`${binary.name}${binary.suffix}`);
+            return require.resolve(process.cwd() + `/server/${binary.name}${binary.suffix}`);
         } else {
             return require.resolve(`${binary.name}/bin/${binary.name}${binary.suffix}`);
         }

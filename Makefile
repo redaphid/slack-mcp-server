@@ -63,6 +63,7 @@ build-dxt: ## Build DTX extension
 		cp ./build/$$EXECUTABLE ./extension.dxt/server/; \
 	))
 	cp npm/slack-mcp-server/bin/index.js ./extension.dxt/server/
+	chmod +x extension.dxt/server/slack-mcp-server-*
 	dxt pack extension.dxt/ build/slack-mcp-server-${NPM_VERSION}.dxt
 	cp build/slack-mcp-server-${NPM_VERSION}.dxt build/slack-mcp-server.dxt
 
