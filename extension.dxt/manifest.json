@@ -21,7 +21,7 @@
   "screenshots": [],
   "server": {
     "type": "node",
-    "entry_point": "server/index.js",
+    "entry_point": "${__dirname}/server/index.js",
     "mcp_config": {
       "command": "node",
       "args": ["${__dirname}/server/index.js" ,"--transport", "stdio"],
@@ -31,7 +31,7 @@
         "SLACK_MCP_XOXD_TOKEN": "${user_config.xoxd_token}",
         "SLACK_MCP_XOXP_TOKEN": "${user_config.xoxp_token}",
         "SLACK_MCP_USER_AGENT": "${user_config.user_agent}",
-        "SLACK_MCP_ENABLE_ADD_MESSAGE_TOOL": "${user_config.add_message_tool}",
+        "SLACK_MCP_ADD_MESSAGE_TOOL": "${user_config.add_message_tool}",
         "SLACK_MCP_USERS_CACHE": "${user_config.users_cache}",
         "SLACK_MCP_CHANNELS_CACHE": "${user_config.channels_cache}"
       }
