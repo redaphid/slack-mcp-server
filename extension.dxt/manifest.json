@@ -33,8 +33,8 @@
         "SLACK_MCP_XOXP_TOKEN": "${user_config.xoxp_token}",
         "SLACK_MCP_USER_AGENT": "${user_config.user_agent}",
         "SLACK_MCP_ADD_MESSAGE_TOOL": "${user_config.add_message_tool}",
-        "SLACK_MCP_USERS_CACHE": "${user_config.users_cache}",
-        "SLACK_MCP_CHANNELS_CACHE": "${user_config.channels_cache}"
+        "SLACK_MCP_USERS_CACHE": "${HOME}/.users_cache.json",
+        "SLACK_MCP_CHANNELS_CACHE": "${HOME}/.channels_cache.json"
       }
     }
   },
@@ -83,22 +83,6 @@
       "title": "Value for add_message_tool",
       "description": "Enable the `conversations_add_message` tool. This tool allows the server to post messages to channels. It is disabled by default for safety reasons. If you want to enable it, set this value to `true`. You can also restrict it to specific channels by providing a comma-separated list of channel IDs.",
       "default": "",
-      "sensitive": false,
-      "required": false
-    },
-    "users_cache": {
-      "type": "string",
-      "title": "Value for users_cache",
-      "description": "Path to the users cache file.",
-      "default": "${__dirname}/.users_cache.json",
-      "sensitive": false,
-      "required": false
-    },
-    "channels_cache": {
-      "type": "string",
-      "title": "Value for channels_cache",
-      "description": "Path to the channels cache file.",
-      "default": "${__dirname}/.channels_cache.json",
       "sensitive": false,
       "required": false
     }
