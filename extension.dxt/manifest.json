@@ -48,11 +48,7 @@
   "license": "MIT",
   "compatibility": {
     "claude_desktop": ">=1.0.0",
-    "platforms": ["darwin", "win32", "linux"],
-    "runtimes": {
-      "python": ">=3.8",
-      "node": ">=16.0.0"
-    }
+    "platforms": ["darwin", "win32", "linux"]
   },
   "user_config": {
     "xoxc_token": {
