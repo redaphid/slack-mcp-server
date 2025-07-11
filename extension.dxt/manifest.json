@@ -20,19 +20,13 @@
   "icon": "icon.png",
   "screenshots": [],
   "server": {
-    "type": "binary",
+    "type": "node",
+    "entry_point": "server/index.js",
     "mcp_config": {
-      "command": "server/slack-mcp-server-linux-amd64",
-      "args": ["--transport", "stdio"],
-      "platform_overrides": {
-        "win32": {
-          "command": "server/slack-mcp-server-windows-amd64"
-        },
-        "darwin": {
-          "command": "server/slack-mcp-server-darwin-amd64"
-        }
-      },
+      "command": "node",
+      "args": ["${__dirname}/server/index.js" ,"--transport", "stdio"],
       "env": {
+        "SLACK_MCP_DXT": "true",
         "SLACK_MCP_XOXC_TOKEN": "${user_config.xoxc_token}",
         "SLACK_MCP_XOXD_TOKEN": "${user_config.xoxd_token}",
         "SLACK_MCP_XOXP_TOKEN": "${user_config.xoxp_token}",
@@ -48,7 +42,10 @@
   "license": "MIT",
   "compatibility": {
     "claude_desktop": ">=1.0.0",
-    "platforms": ["darwin", "win32", "linux"]
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
   },
   "user_config": {
     "xoxc_token": {
