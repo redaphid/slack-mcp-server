@@ -26,6 +26,7 @@
       "command": "node",
       "args": ["${__dirname}/server/index.js" ,"--transport", "stdio"],
       "env": {
+        "HOME": "${HOME}",
         "SLACK_MCP_DXT": "true",
         "SLACK_MCP_XOXC_TOKEN": "${user_config.xoxc_token}",
         "SLACK_MCP_XOXD_TOKEN": "${user_config.xoxd_token}",
