@@ -24,6 +24,7 @@ CLEAN_TARGETS :=
 CLEAN_TARGETS += '$(BINARY_NAME)'
 CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./build/$(BINARY_NAME)-$(os)-$(arch)$(if $(findstring windows,$(os)),.exe,)))
 CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./npm/$(BINARY_NAME)-$(os)-$(arch)/bin/))
+CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./extension.dxt/server/$(BINARY_NAME)-$(os)-$(arch)))
 CLEAN_TARGETS += ./npm/slack-mcp-server/.npmrc ./npm/slack-mcp-server/LICENSE ./npm/slack-mcp-server/README.md
 CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./npm/$(BINARY_NAME)-$(os)-$(arch)/.npmrc))
 
@@ -53,6 +54,17 @@ build-all-platforms: clean tidy format ## Build the project for all platforms
 	$(foreach os,$(OSES),$(foreach arch,$(ARCHS), \
 		GOOS=$(os) GOARCH=$(arch) go build $(COMMON_BUILD_ARGS) -o ./build/$(BINARY_NAME)-$(os)-$(arch)$(if $(findstring windows,$(os)),.exe,) ./cmd/slack-mcp-server; \
 	))
+
+.PHONY: build-dxt
+build-dxt: ## Build DTX extension
+	$(foreach os,$(OSES),$(foreach arch,$(ARCHS), \
+		EXECUTABLE=$(BINARY_NAME)-$(os)-$(arch)$(if $(findstring windows,$(os)),.exe,); \
+		DIRNAME=$(BINARY_NAME)-$(os)-$(arch); \
+		cp ./build/$$EXECUTABLE ./extension.dxt/server/; \
+	))
+	cp npm/slack-mcp-server/bin/index.js ./extension.dxt/server/
+	dxt pack extension.dxt/ build/slack-mcp-server-${NPM_VERSION}.dxt
+	cp build/slack-mcp-server-${NPM_VERSION}.dxt build/slack-mcp-server.dxt
 
 .PHONY: npm-copy-binaries
 npm-copy-binaries: build-all-platforms ## Copy the binaries to each npm package
