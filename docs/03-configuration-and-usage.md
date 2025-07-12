@@ -4,7 +4,7 @@ You can configure the MCP server using command line arguments and environment va
 
 #### Using DXT
 
-For [Claude Desktop](https://claude.ai/download) users, you can use the DXT extension to run the MCP server without needing to edit the `claude_desktop_config.json` file directly. Download the [latest version](https://github.com/korotovsky/slack-mcp-server/releases/latest/download/slack-mcp-server-darwin-amd64) of the DXT Extension from [releases](https://github.com/korotovsky/slack-mcp-server/releases) page.
+For [Claude Desktop](https://claude.ai/download) users, you can use the DXT extension to run the MCP server without needing to edit the `claude_desktop_config.json` file directly. Download the [latest version](https://github.com/korotovsky/slack-mcp-server/releases/latest/download/slack-mcp-server.dxt) of the DXT Extension from [releases](https://github.com/korotovsky/slack-mcp-server/releases) page.
 
 1. Open Claude Desktop and go to the `Settings` menu.
 2. Click on the `Extensions` tab.
