@@ -49,7 +49,7 @@ Get a thread of messages posted to a conversation by channelID and `thread_ts`, 
 ### 3. conversations_add_message
 Add a message to a public channel, private channel, or direct message (DM, or IM) conversation by channel_id and thread_ts.
 
-> **Note:** Posting messages is disabled by default for safety. To enable, set the `SLACK_MCP_ENABLE_ADD_MESSAGE_TOOL` environment variable. If set to a comma-separated list of channel IDs, posting is enabled only for those specific channels. See the Environment Variables section below for details.
+> **Note:** Posting messages is disabled by default for safety. To enable, set the `SLACK_MCP_ADD_MESSAGE_TOOL` environment variable. If set to a comma-separated list of channel IDs, posting is enabled only for those specific channels. See the Environment Variables section below for details.
 
 - **Parameters:**
   - `channel_id` (string, required): ID of the channel in format `Cxxxxxxxxxx` or its name starting with `#...` or `@...` aka `#general` or `@username_dm`.
