@@ -29,8 +29,8 @@ func main() {
 
 	p := provider.New()
 
-	s := server.NewMCPServer(
-		p,
+	s := server.NewMCPServer(p,
+		transport,
 	)
 
 	go func() {

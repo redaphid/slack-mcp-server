@@ -13,12 +13,13 @@ type MCPServer struct {
 	server *server.MCPServer
 }
 
-func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
+func NewMCPServer(provider *provider.ApiProvider, transport string) *MCPServer {
 	s := server.NewMCPServer(
 		"Slack MCP Server",
 		"1.1.18",
 		server.WithLogging(),
 		server.WithRecovery(),
+		server.WithToolHandlerMiddleware(buildMiddleware(transport)),
 	)
 
 	conversationsHandler := handler.NewConversationsHandler(provider)

@@ -2,9 +2,14 @@ package server
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 // authKey is a custom context key for storing the auth token.
@@ -20,18 +25,51 @@ func authFromRequest(ctx context.Context, r *http.Request) context.Context {
 	return withAuthKey(ctx, r.Header.Get("Authorization"))
 }
 
-// authFromEnv extracts the auth token from the environment
-func authFromEnv(ctx context.Context) context.Context {
-	return withAuthKey(ctx, os.Getenv("SLACK_MCP_SSE_API_KEY"))
+// Authenticate checks if the request is authenticated based on the provided context.
+func authenticate(ctx context.Context) (bool, error) {
+	// no configured token means no authentication
+	keyA := os.Getenv("SLACK_MCP_SSE_API_KEY")
+	if keyA == "" {
+		return true, nil
+	}
+
+	keyB, ok := ctx.Value(authKey{}).(string)
+	if !ok {
+		return false, fmt.Errorf("missing auth")
+	}
+
+	if strings.HasPrefix(keyB, "Bearer ") {
+		keyB = strings.TrimPrefix(keyB, "Bearer ")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(keyA), []byte(keyB)) != 1 {
+		return false, fmt.Errorf("invalid auth token")
+	}
+
+	return true, nil
 }
 
-// tokenFromContext extracts the auth token from the context.
-// This can be used by tools to extract the token regardless of the
-// transport being used by the server.
-func tokenFromContext(ctx context.Context) (string, error) {
-	auth, ok := ctx.Value(authKey{}).(string)
-	if !ok {
-		return "", fmt.Errorf("missing auth")
+// public api middleware that checks for authentication
+func buildMiddleware(transport string) server.ToolHandlerMiddleware {
+	return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
+		return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			if transport == "stdio" {
+				return next(ctx, req)
+			} else if transport == "sse" {
+				authenticated, err := authenticate(ctx)
+
+				if err != nil {
+					return nil, fmt.Errorf("authentication error: %w", err)
+				}
+
+				if !authenticated {
+					return nil, fmt.Errorf("unauthorized request")
+				}
+
+				return next(ctx, req)
+			} else {
+				return nil, fmt.Errorf("unknown transport type: %s", transport)
+			}
+		}
 	}
-	return auth, nil
 }
