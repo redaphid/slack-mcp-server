@@ -50,7 +50,7 @@
   },
   "user_config": {
     "auth_method": {
-      "type": "array",
+      "type": "string",
       "title": "Authentication Method",
       "description": "Select the authentication method for the Slack MCP Server. You can choose between 'xoxc/xoxd' (browser based) or 'xoxp' (OAuth2).",
       "items": {
@@ -59,19 +59,19 @@
       },
       "default": [],
       "required": true,
-      "multiple": false
+      "multiple": true
     },
     "xoxc_token": {
       "type": "string",
-      "title": "Value for xoxc token",
-      "description": "The xoxc token for Slack MCP Server. This token is used to authenticate the server with Slack's API. Please see https://github.com/korotovsky/slack-mcp-server/blob/master/docs/01-authentication-setup.md#lookup-slack_mcp_xoxc_token info on how to obtain it.",
+      "title": "Value for xoxc-... token",
+      "description": "The xoxc-... token for Slack MCP Server. This token is used to authenticate the server with Slack's API. Please see https://github.com/korotovsky/slack-mcp-server/blob/master/docs/01-authentication-setup.md#lookup-slack_mcp_xoxc_token info on how to obtain it.",
       "sensitive": true,
       "required": false
     },
     "xoxd_token": {
       "type": "string",
-      "title": "Value for xoxd token",
-      "description": "The xoxd token for Slack MCP Server. This token is used to authenticate the server with Slack's API. Please see https://github.com/korotovsky/slack-mcp-server/blob/master/docs/01-authentication-setup.md#lookup-slack_mcp_xoxd_token info on how to obtain it.",
+      "title": "Value for xoxd-... token",
+      "description": "The xoxd-... token for Slack MCP Server. This token is used to authenticate the server with Slack's API. Please see https://github.com/korotovsky/slack-mcp-server/blob/master/docs/01-authentication-setup.md#lookup-slack_mcp_xoxd_token info on how to obtain it.",
       "sensitive": true,
       "required": false
     },

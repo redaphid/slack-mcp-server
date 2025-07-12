@@ -2,6 +2,20 @@
 
 You can configure the MCP server using command line arguments and environment variables.
 
+#### Using DXT
+
+For [Claude Desktop](https://claude.ai/download) users, you can use the DXT extension to run the MCP server without needing to edit the `claude_desktop_config.json` file directly. Download the [latest version](https://github.com/korotovsky/slack-mcp-server/releases/latest/download/slack-mcp-server-darwin-amd64) of the DXT Extension from [releases](https://github.com/korotovsky/slack-mcp-server/releases) page.
+
+1. Open Claude Desktop and go to the `Settings` menu.
+2. Click on the `Extensions` tab.
+3. Drag and drop the downloaded .dxt file to install it and click "Install".
+5. Fill all required configuration fields
+    - Authentication method: `xoxc/xoxd` or `xoxp`.
+    - Value for `SLACK_MCP_XOXC_TOKEN` and `SLACK_MCP_XOXD_TOKEN` in case of `xoxc/xoxd` method, or `SLACK_MCP_XOXP_TOKEN` in case of `xoxp`.
+    - You may also enable `Add Message Tool` to allow posting messages to channels.
+    - You may also change User-Agent if needed if you have Enterprise Slack.
+6. Enbale MCP Server.
+
 #### Using npx
 
 If you have npm installed, this is the fastest way to get started with `slack-mcp-server` on Claude Desktop.
@@ -196,17 +210,6 @@ wget -O .env https://github.com/korotovsky/slack-mcp-server/releases/latest/down
 nano .env # Edit .env file with your tokens from step 1 of the setup guide
 docker-compose up -d
 ```
-
-#### Using DXT
-
-For [Claude Desktop](https://claude.ai/download) users, you can use the DXT extension to run the MCP server without needing to edit the `claude_desktop_config.json` file directly. Download the [latest version](https://github.com/korotovsky/slack-mcp-server/releases/latest/download/slack-mcp-server-darwin-amd64) of the DXT Extension from [releases](https://github.com/korotovsky/slack-mcp-server/releases) page.
-
-1. Open Claude Desktop and go to the `Settings` menu.
-2. Click on the `Extensions` tab.
-3. Drag and drop the downloaded .dxt file to install it and click "Install".
-4. Once installed, you may see the popup the error message, it is expected because the configuration is done either via `xoxc`/`xoxd` tokens or `xoxp` token, so you need to set the method of your choice.
-5. Click "Save" to apply the changes.
-6. Restart Claude Desktop to apply the changes.
 
 #### Console Arguments
 
