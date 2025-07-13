@@ -16,6 +16,18 @@ For [Claude Desktop](https://claude.ai/download) users, you can use the DXT exte
     - You may also change User-Agent if needed if you have Enterprise Slack.
 6. Enbale MCP Server.
 
+#### Using Cursor Installer
+
+The MCP server can be installed using the Cursor One-Click method.
+
+Below are prepared configurations:
+
+ - `npx` and `xoxc/xoxd` method: [![Install MCP Server](https://cursor.com/deeplink/mcp-install-light.svg)](https://cursor.com/install-mcp?name=slack-mcp-server&config=eyJjb21tYW5kIjogIm5weCAteSBzbGFjay1tY3Atc2VydmVyQGxhdGVzdCAtLXRyYW5zcG9ydCBzdGRpbyIsImVudiI6IHsiU0xBQ0tfTUNQX1hPWENfVE9LRU4iOiAieG94Yy0uLi4iLCAiU0xBQ0tfTUNQX1hPWERfVE9LRU4iOiAieG94ZC0uLi4ifSwiZGlzYWJsZWQiOiBmYWxzZSwiYXV0b0FwcHJvdmUiOiBbXX0%3D)
+ - `npx` and `xoxp` method: [![Install MCP Server](https://cursor.com/deeplink/mcp-install-light.svg)](https://cursor.com/install-mcp?name=slack-mcp-server&config=eyJjb21tYW5kIjogIm5weCAteSBzbGFjay1tY3Atc2VydmVyQGxhdGVzdCAtLXRyYW5zcG9ydCBzdGRpbyIsImVudiI6IHsiU0xBQ0tfTUNQX1hPWFBfVE9LRU4iOiAieG94cC0uLi4ifSwiZGlzYWJsZWQiOiBmYWxzZSwiYXV0b0FwcHJvdmUiOiBbXX0%3D)
+
+> [!IMPORTANT]
+> Remember to replace tokens in the configuration with your own tokens, as they are just examples.
+
 #### Using npx
 
 If you have npm installed, this is the fastest way to get started with `slack-mcp-server` on Claude Desktop.
