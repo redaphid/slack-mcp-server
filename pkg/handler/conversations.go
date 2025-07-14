@@ -717,7 +717,6 @@ func parseFlexibleDate(dateStr string) (time.Time, string, error) {
 		}
 	}
 
-	// Try relative dates
 	lowerDateStr := strings.ToLower(dateStr)
 	now := time.Now().UTC()
 
