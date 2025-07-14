@@ -4,6 +4,7 @@
 .DEFAULT_GOAL := help
 
 TAG ?=
+GO=go
 PACKAGE = $(shell go list -m)
 GIT_COMMIT_HASH = $(shell git rev-parse HEAD)
 GIT_VERSION = $(shell git describe --tags --always --dirty)
@@ -48,7 +49,6 @@ clean: ## Clean up all build artifacts
 build: clean tidy format ## Build the project
 	go build $(COMMON_BUILD_ARGS) -o ./build/$(BINARY_NAME) ./cmd/slack-mcp-server
 
-
 .PHONY: build-all-platforms
 build-all-platforms: clean tidy format ## Build the project for all platforms
 	$(foreach os,$(OSES),$(foreach arch,$(ARCHS), \
@@ -92,17 +92,21 @@ npm-publish: npm-copy-binaries ## Publish the npm packages
 	jq '.optionalDependencies |= with_entries(.value = "$(NPM_VERSION)")' ./npm/slack-mcp-server/package.json > tmp.json && mv tmp.json ./npm/slack-mcp-server/package.json; \
 	cd npm/slack-mcp-server && npm publish
 
+.PHONY: deps
+deps: ## Download dependencies
+	$(GO) mod download
+
 .PHONY: test
 test: ## Run the tests
-	go test -count=1 -v ./...
+	$(GO) test -count=1 -v ./...
 
 .PHONY: format
 format: ## Format the code
-	go fmt ./...
+	$(GO) fmt ./...
 
 .PHONY: tidy
 tidy: ## Tidy up the go modules
-	go mod tidy
+	$(GO) mod tidy
 
 .PHONY: release
 release: ## Create release tag. Usage: make tag TAG=v1.2.3
