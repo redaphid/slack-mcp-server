@@ -260,7 +260,7 @@ func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
 	if data, err := ioutil.ReadFile(ap.channelsCache); err == nil {
 		var cachedChannels []Channel
 		if err := json.Unmarshal(data, &cachedChannels); err != nil {
-			log.Printf("Failed to unmarshal %s: %v; will refetch", cachedChannels, err)
+			log.Printf("Failed to unmarshal %+v: %v; will refetch", cachedChannels, err)
 		} else {
 			for _, c := range cachedChannels {
 				ap.channels[c.ID] = c

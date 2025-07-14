@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -606,30 +607,147 @@ func extractThreadTS(rawurl string) (string, error) {
 	return u.Query().Get("thread_ts"), nil
 }
 
-func parseFlexibleDate(in string) (time.Time, time.Time, error) {
-	today := time.Now().Truncate(24 * time.Hour)
-	s := strings.ToLower(strings.TrimSpace(in))
-	switch s {
+// parseFlexibleDate parses various date formats and returns the parsed time,
+// the normalized YYYY-MM-DD format, and any error
+func parseFlexibleDate(dateStr string) (time.Time, string, error) {
+	dateStr = strings.TrimSpace(dateStr)
+
+	// Try standard formats first (existing logic)
+	standardFormats := []string{
+		"2006-01-02",      // YYYY-MM-DD
+		"2006/01/02",      // YYYY/MM/DD
+		"01-02-2006",      // MM-DD-YYYY
+		"01/02/2006",      // MM/DD/YYYY
+		"02-01-2006",      // DD-MM-YYYY
+		"02/01/2006",      // DD/MM/YYYY
+		"Jan 2, 2006",     // Jan 2, 2006
+		"January 2, 2006", // January 2, 2006
+		"2 Jan 2006",      // 2 Jan 2006
+		"2 January 2006",  // 2 January 2006
+	}
+
+	for _, format := range standardFormats {
+		if t, err := time.Parse(format, dateStr); err == nil {
+			return t, t.Format("2006-01-02"), nil
+		}
+	}
+
+	// Month name mappings
+	monthMap := map[string]int{
+		"january": 1, "jan": 1,
+		"february": 2, "feb": 2,
+		"march": 3, "mar": 3,
+		"april": 4, "apr": 4,
+		"may":  5,
+		"june": 6, "jun": 6,
+		"july": 7, "jul": 7,
+		"august": 8, "aug": 8,
+		"september": 9, "sep": 9, "sept": 9,
+		"october": 10, "oct": 10,
+		"november": 11, "nov": 11,
+		"december": 12, "dec": 12,
+	}
+
+	// Try flexible month-year formats
+	// Pattern: "Month Year" or "Year Month"
+	monthYearPattern := regexp.MustCompile(`^(\d{4})\s+([a-zA-Z]+)$|^([a-zA-Z]+)\s+(\d{4})$`)
+	if matches := monthYearPattern.FindStringSubmatch(dateStr); matches != nil {
+		var year int
+		var monthStr string
+
+		if matches[1] != "" && matches[2] != "" {
+			// Format: "2025 July"
+			year, _ = strconv.Atoi(matches[1])
+			monthStr = strings.ToLower(matches[2])
+		} else if matches[3] != "" && matches[4] != "" {
+			// Format: "July 2025"
+			monthStr = strings.ToLower(matches[3])
+			year, _ = strconv.Atoi(matches[4])
+		}
+
+		if month, ok := monthMap[monthStr]; ok && year > 0 {
+			t := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+			return t, t.Format("2006-01-02"), nil
+		}
+	}
+
+	// Try patterns with day: "1-July-2025", "July-25-2025", "July 10 2025", "10 July 2025"
+	// Pattern: "DD-Month-YYYY" or "Month-DD-YYYY"
+	dayMonthYearPattern1 := regexp.MustCompile(`^(\d{1,2})[-\s]+([a-zA-Z]+)[-\s]+(\d{4})$`)
+	if matches := dayMonthYearPattern1.FindStringSubmatch(dateStr); matches != nil {
+		day, _ := strconv.Atoi(matches[1])
+		monthStr := strings.ToLower(matches[2])
+		year, _ := strconv.Atoi(matches[3])
+
+		if month, ok := monthMap[monthStr]; ok && year > 0 && day > 0 && day <= 31 {
+			t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+			if t.Day() == day {
+				return t, t.Format("2006-01-02"), nil
+			}
+		}
+	}
+
+	// Pattern: "Month-DD-YYYY" or "Month DD YYYY"
+	monthDayYearPattern := regexp.MustCompile(`^([a-zA-Z]+)[-\s]+(\d{1,2})[-\s]+(\d{4})$`)
+	if matches := monthDayYearPattern.FindStringSubmatch(dateStr); matches != nil {
+		monthStr := strings.ToLower(matches[1])
+		day, _ := strconv.Atoi(matches[2])
+		year, _ := strconv.Atoi(matches[3])
+
+		if month, ok := monthMap[monthStr]; ok && year > 0 && day > 0 && day <= 31 {
+			t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+			if t.Day() == day {
+				return t, t.Format("2006-01-02"), nil
+			}
+		}
+	}
+
+	// Pattern: "YYYY Month DD" (e.g., "2025 July 10")
+	yearMonthDayPattern := regexp.MustCompile(`^(\d{4})[-\s]+([a-zA-Z]+)[-\s]+(\d{1,2})$`)
+	if matches := yearMonthDayPattern.FindStringSubmatch(dateStr); matches != nil {
+		year, _ := strconv.Atoi(matches[1])
+		monthStr := strings.ToLower(matches[2])
+		day, _ := strconv.Atoi(matches[3])
+
+		if month, ok := monthMap[monthStr]; ok && year > 0 && day > 0 && day <= 31 {
+			t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+			if t.Day() == day {
+				return t, t.Format("2006-01-02"), nil
+			}
+		}
+	}
+
+	// Try relative dates
+	lowerDateStr := strings.ToLower(dateStr)
+	now := time.Now().UTC()
+
+	switch lowerDateStr {
 	case "today":
-		return today, today, nil
+		t := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+		return t, t.Format("2006-01-02"), nil
 	case "yesterday":
-		y := today.AddDate(0, 0, -1)
-		return y, y, nil
+		t := now.AddDate(0, 0, -1)
+		t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+		return t, t.Format("2006-01-02"), nil
+	case "tomorrow":
+		t := now.AddDate(0, 0, 1)
+		t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+		return t, t.Format("2006-01-02"), nil
 	}
-	// exact date
-	if d, err := time.Parse("2006-01-02", s); err == nil {
-		return d, d, nil
+
+	// Try "X days ago" pattern
+	daysAgoPattern := regexp.MustCompile(`^(\d+)\s+days?\s+ago$`)
+	if matches := daysAgoPattern.FindStringSubmatch(lowerDateStr); matches != nil {
+		days, _ := strconv.Atoi(matches[1])
+		t := now.AddDate(0, 0, -days)
+		t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+		return t, t.Format("2006-01-02"), nil
 	}
-	// month name
-	if m, err := time.Parse("January", strings.Title(s)); err == nil {
-		year := time.Now().Year()
-		start := time.Date(year, m.Month(), 1, 0, 0, 0, 0, time.Local)
-		end := start.AddDate(0, 1, -1)
-		return start, end, nil
-	}
-	return time.Time{}, time.Time{}, fmt.Errorf("invalid date: %q", in)
+
+	return time.Time{}, "", fmt.Errorf("unable to parse date: %s", dateStr)
 }
 
+// buildDateFilters remains the same as it already uses parseFlexibleDate
 func buildDateFilters(before, after, on, during string) (map[string]string, error) {
 	out := make(map[string]string)
 
@@ -637,33 +755,37 @@ func buildDateFilters(before, after, on, during string) (map[string]string, erro
 		if during != "" || before != "" || after != "" {
 			return nil, fmt.Errorf("'on' cannot be combined with other date filters")
 		}
-		if _, _, err := parseFlexibleDate(on); err != nil {
+		_, normalized, err := parseFlexibleDate(on)
+		if err != nil {
 			return nil, fmt.Errorf("invalid 'on' date: %v", err)
 		}
-		out["on"] = on
+		out["on"] = normalized
 		return out, nil
 	}
 	if during != "" {
 		if before != "" || after != "" {
 			return nil, fmt.Errorf("'during' cannot be combined with 'before' or 'after'")
 		}
-		if _, _, err := parseFlexibleDate(during); err != nil {
+		_, normalized, err := parseFlexibleDate(during)
+		if err != nil {
 			return nil, fmt.Errorf("invalid 'during' date: %v", err)
 		}
-		out["during"] = during
+		out["during"] = normalized
 		return out, nil
 	}
 	if after != "" {
-		if _, _, err := parseFlexibleDate(after); err != nil {
+		_, normalized, err := parseFlexibleDate(after)
+		if err != nil {
 			return nil, fmt.Errorf("invalid 'after' date: %v", err)
 		}
-		out["after"] = after
+		out["after"] = normalized
 	}
 	if before != "" {
-		if _, _, err := parseFlexibleDate(before); err != nil {
+		_, normalized, err := parseFlexibleDate(before)
+		if err != nil {
 			return nil, fmt.Errorf("invalid 'before' date: %v", err)
 		}
-		out["before"] = before
+		out["before"] = normalized
 	}
 	if after != "" && before != "" {
 		a, _, _ := parseFlexibleDate(after)
