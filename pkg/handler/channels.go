@@ -42,6 +42,10 @@ func NewChannelsHandler(apiProvider *provider.ApiProvider) *ChannelsHandler {
 func (ch *ChannelsHandler) ChannelsResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
 	var channelList []Channel
 
+	if ready, err := ch.apiProvider.IsReady(); !ready {
+		return nil, err
+	}
+
 	_, ar, err := ch.apiProvider.ProvideGeneric()
 	if err != nil {
 		return nil, err
