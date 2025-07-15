@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -20,9 +21,16 @@ import (
 	"github.com/slack-go/slack"
 )
 
-var defaultUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+const usersNotReadyMsg = "users cache is not ready yet, sync process is still running... please wait"
+const channelsNotReadyMsg = "channels cache is not ready yet, sync process is still running... please wait"
+const defaultUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
+var PrivateChanType = "private_channel"
 var PubChanType = "public_channel"
+
+var ErrUsersNotReady = errors.New(usersNotReadyMsg)
+var ErrChannelsNotReady = errors.New(channelsNotReadyMsg)
 
 type UsersCache struct {
 	Users    map[string]slack.User `json:"users"`
@@ -46,10 +54,12 @@ type ApiProvider struct {
 	users      map[string]slack.User
 	usersInv   map[string]string
 	usersCache string
+	usersReady bool
 
 	channels      map[string]Channel
 	channelsInv   map[string]string
 	channelsCache string
+	channelsReady bool
 }
 
 type Channel struct {
@@ -219,6 +229,7 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 				ap.users[u.ID] = u
 			}
 			log.Printf("Loaded %d users from cache %q", len(cachedUsers), ap.usersCache)
+			ap.usersReady = true
 			return nil
 		}
 	}
@@ -253,6 +264,9 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 		}
 	}
 
+	log.Printf("Cached %d users into %q", len(users), ap.usersCache)
+	ap.usersReady = true
+
 	return nil
 }
 
@@ -266,6 +280,7 @@ func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
 				ap.channels[c.ID] = c
 			}
 			log.Printf("Loaded %d channels from cache %q", len(cachedChannels), ap.channelsCache)
+			ap.channelsReady = true
 			return nil
 		}
 	}
@@ -281,6 +296,9 @@ func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
 			log.Printf("Wrote %d channels to cache %q", len(channels), ap.channelsCache)
 		}
 	}
+
+	log.Printf("Cached %d channels into %q", len(channels), ap.channelsCache)
+	ap.channelsReady = true
 
 	return nil
 }
@@ -420,6 +438,16 @@ func (ap *ApiProvider) ProvideChannelsMaps() *ChannelsCache {
 		Channels:    ap.channels,
 		ChannelsInv: ap.channelsInv,
 	}
+}
+
+func (ap *ApiProvider) IsReady() (bool, error) {
+	if !ap.usersReady {
+		return false, ErrUsersNotReady
+	}
+	if !ap.channelsReady {
+		return false, ErrChannelsNotReady
+	}
+	return true, nil
 }
 
 func withHTTPClientOption(cookies []*http.Cookie) func(c *slack.Client) {

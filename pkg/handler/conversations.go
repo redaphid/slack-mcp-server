@@ -271,13 +271,17 @@ func isChannelAllowed(channel string) bool {
 func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack.Message, channel string, includeActivity bool) []Message {
 	usersMap := ch.apiProvider.ProvideUsersMap()
 	var messages []Message
+	warn := false
 
 	for _, msg := range slackMessages {
 		if msg.SubType != "" && !includeActivity {
 			continue
 		}
 
-		userName, realName := getUserInfo(msg.User, usersMap.Users)
+		userName, realName, ok := getUserInfo(msg.User, usersMap.Users)
+		if !ok {
+			warn = true
+		}
 
 		messages = append(messages, Message{
 			UserID:   msg.User,
@@ -290,15 +294,26 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 		})
 	}
 
+	if ready, err := ch.apiProvider.IsReady(); !ready {
+		if warn && errors.Is(err, provider.ErrUsersNotReady) {
+			log.Printf("WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again.\n")
+		}
+	}
+
 	return messages
 }
 
 func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.SearchMessage) []Message {
 	usersMap := ch.apiProvider.ProvideUsersMap()
 	var messages []Message
+	warn := false
 
 	for _, msg := range slackMessages {
-		userName, realName := getUserInfo(msg.User, usersMap.Users)
+		userName, realName, ok := getUserInfo(msg.User, usersMap.Users)
+		if !ok {
+			warn = true
+		}
+
 		threadTs, _ := extractThreadTS(msg.Permalink)
 
 		messages = append(messages, Message{
@@ -310,6 +325,12 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 			ThreadTs: threadTs,
 			Time:     msg.Timestamp,
 		})
+	}
+
+	if ready, err := ch.apiProvider.IsReady(); !ready {
+		if warn && errors.Is(err, provider.ErrUsersNotReady) {
+			log.Printf("WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again.\n")
+		}
 	}
 
 	return messages
@@ -345,13 +366,24 @@ func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToo
 	}
 
 	if strings.HasPrefix(channel, "#") || strings.HasPrefix(channel, "@") {
-		channelsMaps := ch.apiProvider.ProvideChannelsMaps()
-		chn, ok := channelsMaps.ChannelsInv[channel]
-		if !ok {
-			return nil, fmt.Errorf("channel %q not found", channel)
-		}
+		if ready, err := ch.apiProvider.IsReady(); !ready {
+			if errors.Is(err, provider.ErrUsersNotReady) {
+				log.Printf("WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again.\n")
+			}
+			if errors.Is(err, provider.ErrChannelsNotReady) {
+				log.Printf("WARNING: Slack channels sync is not ready yet, you may experience some limited functionality and be able to request conversation only by Channel ID, not by its name. Please wait until channels are synced and try again.\n")
+			}
 
-		channel = channelsMaps.Channels[chn].ID
+			return nil, fmt.Errorf("channel %q not found in empty cache", channel)
+		} else {
+			channelsMaps := ch.apiProvider.ProvideChannelsMaps()
+			chn, ok := channelsMaps.ChannelsInv[channel]
+			if !ok {
+				return nil, fmt.Errorf("channel %q not found in synced cache. Try to remove old cache file and restart MCP Server", channel)
+			}
+
+			channel = channelsMaps.Channels[chn].ID
+		}
 	}
 
 	return &conversationParams{
@@ -554,11 +586,11 @@ func marshalMessagesToCSV(messages []Message) (*mcp.CallToolResult, error) {
 	return mcp.NewToolResultText(string(csvBytes)), nil
 }
 
-func getUserInfo(userID string, usersMap map[string]slack.User) (userName, realName string) {
+func getUserInfo(userID string, usersMap map[string]slack.User) (userName string, realName string, ok bool) {
 	if user, ok := usersMap[userID]; ok {
-		return user.Name, user.RealName
+		return user.Name, user.RealName, true
 	}
-	return userID, userID
+	return userID, userID, false
 }
 
 func limitByNumeric(limit string) (int, error) {
