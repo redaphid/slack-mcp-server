@@ -271,6 +271,7 @@ func isChannelAllowed(channel string) bool {
 func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack.Message, channel string, includeActivity bool) []Message {
 	usersMap := ch.apiProvider.ProvideUsersMap()
 	var messages []Message
+	warn := false
 
 	for _, msg := range slackMessages {
 		if msg.SubType != "" && !includeActivity {
@@ -278,11 +279,8 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 		}
 
 		userName, realName, ok := getUserInfo(msg.User, usersMap.Users)
-
-		if ready, err := ch.apiProvider.IsReady(); !ready {
-			if !ok && errors.Is(err, provider.ErrUsersNotReady) {
-				log.Printf("WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again.\n")
-			}
+		if !ok {
+			warn = true
 		}
 
 		messages = append(messages, Message{
@@ -294,6 +292,12 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 			ThreadTs: msg.ThreadTimestamp,
 			Time:     msg.Timestamp,
 		})
+	}
+
+	if ready, err := ch.apiProvider.IsReady(); !ready {
+		if warn && errors.Is(err, provider.ErrUsersNotReady) {
+			log.Printf("WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again.\n")
+		}
 	}
 
 	return messages
