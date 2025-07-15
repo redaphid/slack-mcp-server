@@ -227,6 +227,7 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 		} else {
 			for _, u := range cachedUsers {
 				ap.users[u.ID] = u
+				ap.usersInv[u.Name] = u.ID
 			}
 			log.Printf("Loaded %d users from cache %q", len(cachedUsers), ap.usersCache)
 			ap.usersReady = true
@@ -278,6 +279,7 @@ func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
 		} else {
 			for _, c := range cachedChannels {
 				ap.channels[c.ID] = c
+				ap.channelsInv[c.Name] = c.ID
 			}
 			log.Printf("Loaded %d channels from cache %q", len(cachedChannels), ap.channelsCache)
 			ap.channelsReady = true
