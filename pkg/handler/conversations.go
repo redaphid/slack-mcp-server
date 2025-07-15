@@ -32,6 +32,12 @@ type Message struct {
 	Cursor   string `json:"cursor"`
 }
 
+type User struct {
+	UserID   string `json:"userID"`
+	UserName string `json:"userName"`
+	RealName string `json:"realName"`
+}
+
 type conversationParams struct {
 	channel  string
 	limit    int
@@ -73,6 +79,47 @@ func NewConversationsHandler(apiProvider *provider.ApiProvider) *ConversationsHa
 	return &ConversationsHandler{
 		apiProvider: apiProvider,
 	}
+}
+
+func (ch *ConversationsHandler) UsersResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	if ready, err := ch.apiProvider.IsReady(); !ready {
+		return nil, err
+	}
+
+	_, ar, err := ch.apiProvider.ProvideGeneric()
+	if err != nil {
+		return nil, err
+	}
+
+	ws, err := text.Workspace(ar.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse workspace from URL: %v", err)
+	}
+
+	usersMaps := ch.apiProvider.ProvideUsersMap()
+	users := usersMaps.Users
+
+	usersList := make([]User, 0, len(users))
+	for _, user := range users {
+		usersList = append(usersList, User{
+			UserID:   user.ID,
+			UserName: user.Name,
+			RealName: user.RealName,
+		})
+	}
+
+	csvBytes, err := gocsv.MarshalBytes(&usersList)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.ResourceContents{
+		mcp.TextResourceContents{
+			URI:      "slack://" + ws + "/users",
+			MIMEType: "text/csv",
+			Text:     string(csvBytes),
+		},
+	}, nil
 }
 
 func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

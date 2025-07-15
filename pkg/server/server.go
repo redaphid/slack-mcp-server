@@ -164,6 +164,13 @@ func NewMCPServer(provider *provider.ApiProvider, transport string) *MCPServer {
 		mcp.WithMIMEType("text/csv"),
 	), channelsHandler.ChannelsResource)
 
+	s.AddResource(mcp.NewResource(
+		"slack://"+ws+"/users",
+		"Directory of Slack users",
+		mcp.WithResourceDescription("This resource provides a directory of Slack users."),
+		mcp.WithMIMEType("text/csv"),
+	), conversationsHandler.UsersResource)
+
 	return &MCPServer{
 		server: s,
 	}
