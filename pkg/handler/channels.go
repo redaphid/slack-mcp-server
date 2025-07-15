@@ -38,6 +38,10 @@ func NewChannelsHandler(apiProvider *provider.ApiProvider) *ChannelsHandler {
 }
 
 func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if ready, err := ch.apiProvider.IsReady(); !ready {
+		return nil, err
+	}
+
 	sortType := request.GetString("sort", "popularity")
 	types := request.GetString("channel_types", provider.PubChanType)
 
@@ -49,6 +53,11 @@ func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.Call
 		if ch.validTypes[t] {
 			channelTypes = append(channelTypes, t)
 		}
+	}
+
+	if len(channelTypes) == 0 {
+		channelTypes = append(channelTypes, provider.PubChanType)
+		channelTypes = append(channelTypes, provider.PrivateChanType)
 	}
 
 	cursor := request.GetString("cursor", "")
