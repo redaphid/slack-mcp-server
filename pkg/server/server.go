@@ -16,7 +16,7 @@ type MCPServer struct {
 func NewMCPServer(provider *provider.ApiProvider, transport string) *MCPServer {
 	s := server.NewMCPServer(
 		"Slack MCP Server",
-		"1.1.19",
+		"1.1.20",
 		server.WithLogging(),
 		server.WithRecovery(),
 		server.WithToolHandlerMiddleware(buildMiddleware(transport)),
