@@ -201,22 +201,30 @@ func newWithXOXC(authProvider auth.ValueAuth) *ApiProvider {
 	}
 }
 
-func (ap *ApiProvider) ProvideGeneric() (*slack.Client, error) {
+func (ap *ApiProvider) ProvideGeneric() (*slack.Client, *slack2.AuthTestResponse, error) {
 	if ap.clientGeneric == nil {
 		ap.clientGeneric = ap.boot(ap)
 	}
 
-	return ap.clientGeneric, nil
+	return ap.clientGeneric, ap.authResponse, nil
 }
 
-func (ap *ApiProvider) ProvideEnterprise() (*edge.Client, error) {
+func (ap *ApiProvider) ProvideEnterprise() (*edge.Client, *slack2.AuthTestResponse, error) {
 	if ap.clientEnterprise == nil {
 		ap.clientEnterprise, _ = edge.NewWithInfo(ap.authResponse, ap.authProvider,
 			withHTTPClientEdgeOption(ap.authProvider.Cookies()),
 		)
 	}
 
-	return ap.clientEnterprise, nil
+	return ap.clientEnterprise, ap.authResponse, nil
+}
+
+func (ap *ApiProvider) AuthResponse() (*slack2.AuthTestResponse, error) {
+	if ap.authResponse == nil {
+		return nil, errors.New("not authenticated")
+	}
+
+	return ap.authResponse, nil
 }
 
 func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
@@ -237,7 +245,7 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 
 	optionLimit := slack.GetUsersOptionLimit(1000)
 
-	client, err := ap.ProvideGeneric()
+	client, _, err := ap.ProvideGeneric()
 	if err != nil {
 		return err
 	}
@@ -324,12 +332,12 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 		nextcur string
 	)
 
-	clientGeneric, err := ap.ProvideGeneric()
+	clientGeneric, _, err := ap.ProvideGeneric()
 	if err != nil {
 		return nil
 	}
 
-	clientE, err := ap.ProvideEnterprise()
+	clientE, _, err := ap.ProvideEnterprise()
 	if err != nil {
 		return nil
 	}

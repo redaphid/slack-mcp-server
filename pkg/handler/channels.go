@@ -3,11 +3,13 @@ package handler
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/gocarina/gocsv"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/text"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -35,6 +37,44 @@ func NewChannelsHandler(apiProvider *provider.ApiProvider) *ChannelsHandler {
 		apiProvider: apiProvider,
 		validTypes:  validTypes,
 	}
+}
+
+func (ch *ChannelsHandler) ChannelsResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	var channelList []Channel
+
+	_, ar, err := ch.apiProvider.ProvideGeneric()
+	if err != nil {
+		return nil, err
+	}
+
+	ws, err := text.Workspace(ar.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse workspace from URL: %v", err)
+	}
+
+	channels := ch.apiProvider.ProvideChannelsMaps().Channels
+	for _, channel := range channels {
+		channelList = append(channelList, Channel{
+			ID:          channel.ID,
+			Name:        channel.Name,
+			Topic:       channel.Topic,
+			Purpose:     channel.Purpose,
+			MemberCount: channel.MemberCount,
+		})
+	}
+
+	csvBytes, err := gocsv.MarshalBytes(&channelList)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.ResourceContents{
+		mcp.TextResourceContents{
+			URI:      "slack://" + ws + "/channels",
+			MIMEType: "text/csv",
+			Text:     string(csvBytes),
+		},
+	}, nil
 }
 
 func (ch *ChannelsHandler) ChannelsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/korotovsky/slack-mcp-server/pkg/handler"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/text"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -145,6 +146,23 @@ func NewMCPServer(provider *provider.ApiProvider, transport string) *MCPServer {
 			mcp.Description("Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request."),
 		),
 	), channelsHandler.ChannelsHandler)
+
+	_, ar, err := provider.ProvideGeneric()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to authenticate: %v", err))
+	}
+
+	ws, err := text.Workspace(ar.URL)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to parse workspace from URL: %v", err))
+	}
+
+	s.AddResource(mcp.NewResource(
+		"slack://"+ws+"/channels",
+		"Directory of Slack channels",
+		mcp.WithResourceDescription("This resource provides a directory of Slack channels."),
+		mcp.WithMIMEType("text/csv"),
+	), channelsHandler.ChannelsResource)
 
 	return &MCPServer{
 		server: s,

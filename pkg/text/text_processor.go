@@ -1,9 +1,24 @@
 package text
 
 import (
+	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 )
+
+func Workspace(rawURL string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	host := u.Hostname()
+	parts := strings.Split(host, ".")
+	if len(parts) < 3 {
+		return "", fmt.Errorf("invalid Slack URL: %q", rawURL)
+	}
+	return parts[0], nil
+}
 
 func ProcessText(s string) string {
 	s = filterSpecialChars(s)
