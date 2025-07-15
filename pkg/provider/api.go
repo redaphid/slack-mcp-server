@@ -442,11 +442,9 @@ func (ap *ApiProvider) ProvideChannelsMaps() *ChannelsCache {
 
 func (ap *ApiProvider) IsReady() (bool, error) {
 	if !ap.usersReady {
-		log.Printf(usersNotReadyMsg)
 		return false, ErrUsersNotReady
 	}
 	if !ap.channelsReady {
-		log.Printf(channelsNotReadyMsg)
 		return false, ErrChannelsNotReady
 	}
 	return true, nil

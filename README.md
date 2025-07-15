@@ -107,6 +107,16 @@ Get list of channels
 
 *You need either `xoxp` **or** both `xoxc`/`xoxd` tokens for authentication.
 
+### Limitations matrix & Cache
+
+| Users Cache        | Channels Cache     | Limitations                                                                                                                                                                                                                                                                                                                     |
+|--------------------|--------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| :x:                | :x:                | No cache, No LLM context enhancement with user data, tool `channels_list` will be fully not functional. Tools `conversations_*` will have limited capabilities and you won't be able to search messages by `@userHandle` or `#channel-name`, getting messages by by `@userHandle` or `#channel-name` won't be available either. |
+| -------------      | ----------------   | ------------------                                                                                                                                                                                                                                                                                                              |
+| :white_check_mark: | :x:                | No channels cache, tool `channels_list` will be fully not functional. Tools `conversations_*` will have limited capabilities and you won't be able to search messages by `@userHandle` or `#channel-name`, getting messages by by `@userHandle` or `#channel-name` won't be available either.                                   |
+| -------------      | ----------------   | ------------------                                                                                                                                                                                                                                                                                                              |
+| :white_check_mark: | :white_check_mark: | No limitations, fully functional Slack MCP Server.                                                                                                                                                                                                                                                                              |
+
 ### Debugging Tools
 
 ```bash
