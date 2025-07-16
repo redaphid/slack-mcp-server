@@ -51,15 +51,10 @@
   "user_config": {
     "auth_method": {
       "type": "string",
-      "title": "Authentication Method",
+      "title": "Authentication Method: xoxc/xoxd or xoxp",
       "description": "Select the authentication method for the Slack MCP Server. You can choose between 'xoxc/xoxd' (browser based) or 'xoxp' (OAuth2).",
-      "items": {
-        "type": "string",
-        "enum": ["xoxc/xoxd", "xoxp"]
-      },
-      "default": [],
-      "required": true,
-      "multiple": true
+      "default": "",
+      "required": true
     },
     "xoxc_token": {
       "type": "string",
