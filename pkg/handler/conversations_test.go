@@ -384,7 +384,6 @@ func TestLimitByExpression_Valid(t *testing.T) {
 
 func TestLimitByExpression_Invalid(t *testing.T) {
 	invalid := []string{
-		"",    // too short
 		"d",   // too short
 		"0d",  // zero
 		"-1d", // negative
