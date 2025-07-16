@@ -18,8 +18,8 @@ var defaultSsePort = 13080
 
 func main() {
 	var transport string
-	flag.StringVar(&transport, "t", "stdio", "ServerTransport type (stdio or sse)")
-	flag.StringVar(&transport, "transport", "stdio", "ServerTransport type (stdio or sse)")
+	flag.StringVar(&transport, "t", "stdio", "Transport type (stdio or sse)")
+	flag.StringVar(&transport, "transport", "stdio", "Transport type (stdio or sse)")
 	flag.Parse()
 
 	err := validateToolConfig(os.Getenv("SLACK_MCP_ADD_MESSAGE_TOOL"))
