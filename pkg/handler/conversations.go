@@ -22,6 +22,9 @@ import (
 	slackGoUtil "github.com/takara2314/slack-go-util"
 )
 
+const defaultConversationsNumericLimit = 50
+const defaultConversationsExpressionLimit = "1d"
+
 type Message struct {
 	UserID   string `json:"userID"`
 	UserName string `json:"userUser"`
@@ -406,13 +409,13 @@ func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToo
 		err         error
 	)
 
-	if strings.HasSuffix(limit, "d") {
-		paramLimit, paramOldest, paramLatest, err = limitByDays(limit)
+	if strings.HasSuffix(limit, "d") || strings.HasSuffix(limit, "w") || strings.HasSuffix(limit, "m") {
+		paramLimit, paramOldest, paramLatest, err = limitByExpression(limit, defaultConversationsExpressionLimit)
 		if err != nil {
 			return nil, err
 		}
 	} else if cursor == "" {
-		paramLimit, err = limitByNumeric(limit)
+		paramLimit, err = limitByNumeric(limit, defaultConversationsNumericLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -646,7 +649,11 @@ func getUserInfo(userID string, usersMap map[string]slack.User) (userName string
 	return userID, userID, false
 }
 
-func limitByNumeric(limit string) (int, error) {
+func limitByNumeric(limit string, defaultLimit int) (int, error) {
+	if limit == "" {
+		return defaultLimit, nil
+	}
+
 	n, err := strconv.Atoi(limit)
 	if err != nil {
 		return 0, fmt.Errorf("invalid numeric limit: %q", limit)
@@ -654,29 +661,55 @@ func limitByNumeric(limit string) (int, error) {
 	return n, nil
 }
 
-// limitByDays parses a string like "1d", "2d", etc.
+// limitByExpression parses a string like "1d", "2w", "3m", etc.
 // It returns:
-//   - the per page limit (100)
-//   - oldest timestamp = midnight of (today − days + 1),
+//   - the per page limit (always 100)
+//   - oldest timestamp = midnight of (today − duration + 1 day) for days/weeks,
+//     or midnight of (today − X months) for months,
 //   - latest timestamp = now,
 //   - or an error if parsing fails.
-func limitByDays(limit string) (slackLimit int, oldest, latest string, err error) {
-	daysStr := strings.TrimSuffix(limit, "d")
-	days, err := strconv.Atoi(daysStr)
-	if err != nil || days <= 0 {
-		return 0, "", "", fmt.Errorf("invalid duration limit %q: must be a positive integer with 'd' suffix", limit)
+func limitByExpression(limit string, defaultLimit string) (slackLimit int, oldest, latest string, err error) {
+	if limit == "" {
+		limit = defaultLimit
+	}
+
+	if len(limit) < 2 {
+		return 0, "", "", fmt.Errorf("invalid duration limit %q: too short", limit)
+	}
+
+	// suffix is the last character: d, w, or m
+	suffix := limit[len(limit)-1]
+	numStr := limit[:len(limit)-1]
+	n, err := strconv.Atoi(numStr)
+	if err != nil || n <= 0 {
+		return 0, "", "", fmt.Errorf(
+			"invalid duration limit %q: must be a positive integer followed by 'd', 'w', or 'm'",
+			limit,
+		)
 	}
 
 	now := time.Now()
 	loc := now.Location()
-
 	startOfToday := time.Date(
 		now.Year(), now.Month(), now.Day(),
 		0, 0, 0, 0,
 		loc,
 	)
 
-	oldestTime := startOfToday.AddDate(0, 0, -days+1)
+	var oldestTime time.Time
+	switch suffix {
+	case 'd':
+		oldestTime = startOfToday.AddDate(0, 0, -n+1)
+	case 'w':
+		oldestTime = startOfToday.AddDate(0, 0, -n*7+1)
+	case 'm':
+		oldestTime = startOfToday.AddDate(0, -n, 0)
+	default:
+		return 0, "", "", fmt.Errorf(
+			"invalid duration limit %q: must end in 'd', 'w', or 'm'",
+			limit,
+		)
+	}
 
 	latest = fmt.Sprintf("%d.000000", now.Unix())
 	oldest = fmt.Sprintf("%d.000000", oldestTime.Unix())
