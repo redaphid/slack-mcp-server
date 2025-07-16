@@ -43,7 +43,8 @@ type ChannelsCache struct {
 }
 
 type ApiProvider struct {
-	boot func(ap *ApiProvider) *slack.Client
+	transport string
+	boot      func(ap *ApiProvider) *slack.Client
 
 	authProvider *auth.ValueAuth
 	authResponse *slack2.AuthTestResponse
@@ -73,7 +74,7 @@ type Channel struct {
 	IsPrivate   bool   `json:"private"`
 }
 
-func New() *ApiProvider {
+func New(transport string) *ApiProvider {
 	var (
 		authProvider auth.ValueAuth
 		err          error
@@ -87,7 +88,7 @@ func New() *ApiProvider {
 			panic(err)
 		}
 
-		return newWithXOXP(authProvider)
+		return newWithXOXP(transport, authProvider)
 	}
 
 	// Fall back to XOXC/XOXD tokens (session-based)
@@ -103,10 +104,10 @@ func New() *ApiProvider {
 		panic(err)
 	}
 
-	return newWithXOXC(authProvider)
+	return newWithXOXC(transport, authProvider)
 }
 
-func newWithXOXP(authProvider auth.ValueAuth) *ApiProvider {
+func newWithXOXP(transport string, authProvider auth.ValueAuth) *ApiProvider {
 	usersCache := os.Getenv("SLACK_MCP_USERS_CACHE")
 	if usersCache == "" {
 		usersCache = ".users_cache.json"
@@ -118,6 +119,7 @@ func newWithXOXP(authProvider auth.ValueAuth) *ApiProvider {
 	}
 
 	return &ApiProvider{
+		transport: transport,
 		boot: func(ap *ApiProvider) *slack.Client {
 			api := slack.New(authProvider.SlackToken())
 			res, err := api.AuthTest()
@@ -150,7 +152,7 @@ func newWithXOXP(authProvider auth.ValueAuth) *ApiProvider {
 	}
 }
 
-func newWithXOXC(authProvider auth.ValueAuth) *ApiProvider {
+func newWithXOXC(transport string, authProvider auth.ValueAuth) *ApiProvider {
 	usersCache := os.Getenv("SLACK_MCP_USERS_CACHE")
 	if usersCache == "" {
 		usersCache = ".users_cache.json"
@@ -162,6 +164,7 @@ func newWithXOXC(authProvider auth.ValueAuth) *ApiProvider {
 	}
 
 	return &ApiProvider{
+		transport: transport,
 		boot: func(ap *ApiProvider) *slack.Client {
 			api := slack.New(authProvider.SlackToken(),
 				withHTTPClientOption(authProvider.Cookies()),
@@ -458,6 +461,10 @@ func (ap *ApiProvider) IsReady() (bool, error) {
 		return false, ErrChannelsNotReady
 	}
 	return true, nil
+}
+
+func (ap *ApiProvider) ServerTransport() string {
+	return ap.transport
 }
 
 func withHTTPClientOption(cookies []*http.Cookie) func(c *slack.Client) {

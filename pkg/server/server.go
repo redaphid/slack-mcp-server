@@ -5,6 +5,7 @@ import (
 
 	"github.com/korotovsky/slack-mcp-server/pkg/handler"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/server/auth"
 	"github.com/korotovsky/slack-mcp-server/pkg/text"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -14,13 +15,13 @@ type MCPServer struct {
 	server *server.MCPServer
 }
 
-func NewMCPServer(provider *provider.ApiProvider, transport string) *MCPServer {
+func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 	s := server.NewMCPServer(
 		"Slack MCP Server",
 		"1.1.20",
 		server.WithLogging(),
 		server.WithRecovery(),
-		server.WithToolHandlerMiddleware(buildMiddleware(transport)),
+		server.WithToolHandlerMiddleware(auth.BuildMiddleware(provider.ServerTransport())),
 	)
 
 	conversationsHandler := handler.NewConversationsHandler(provider)
@@ -179,7 +180,7 @@ func NewMCPServer(provider *provider.ApiProvider, transport string) *MCPServer {
 func (s *MCPServer) ServeSSE(addr string) *server.SSEServer {
 	return server.NewSSEServer(s.server,
 		server.WithBaseURL(fmt.Sprintf("http://%s", addr)),
-		server.WithSSEContextFunc(authFromRequest),
+		server.WithSSEContextFunc(auth.AuthFromRequest),
 	)
 }
 

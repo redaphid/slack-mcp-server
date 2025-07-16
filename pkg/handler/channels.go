@@ -9,6 +9,7 @@ import (
 
 	"github.com/gocarina/gocsv"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/server/auth"
 	"github.com/korotovsky/slack-mcp-server/pkg/text"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -40,6 +41,11 @@ func NewChannelsHandler(apiProvider *provider.ApiProvider) *ChannelsHandler {
 }
 
 func (ch *ChannelsHandler) ChannelsResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	// mark3labs/mcp-go does not support middlewares for resources.
+	if authenticated, err := auth.IsAuthenticated(ctx, ch.apiProvider.ServerTransport()); !authenticated {
+		return nil, err
+	}
+
 	var channelList []Channel
 
 	if ready, err := ch.apiProvider.IsReady(); !ready {
