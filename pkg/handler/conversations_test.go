@@ -350,7 +350,7 @@ func TestLimitByExpression_Valid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			slackLimit, oldestStr, latestStr, err := limitByExpression(tt.input)
+			slackLimit, oldestStr, latestStr, err := limitByExpression(tt.input, defaultConversationsExpressionLimit)
 			if err != nil {
 				t.Fatalf("expected no error for %q, got %v", tt.input, err)
 			}
@@ -395,7 +395,7 @@ func TestLimitByExpression_Invalid(t *testing.T) {
 
 	for _, input := range invalid {
 		t.Run(input, func(t *testing.T) {
-			_, _, _, err := limitByExpression(input)
+			_, _, _, err := limitByExpression(input, defaultConversationsExpressionLimit)
 			if err == nil {
 				t.Errorf("expected error for %q, got nil", input)
 			}
