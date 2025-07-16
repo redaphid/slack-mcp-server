@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -326,6 +328,76 @@ func TestBuildDateFilters(t *testing.T) {
 						t.Errorf("buildDateFilters() got[%s] = %v, want %v", k, got[k], v)
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestLimitByExpression_Valid(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		minSecs int64 // inclusive
+		maxSecs int64 // exclusive
+	}{
+		{"1 day", "", 0, 86400}, // default case with no input test
+		{"1 day", "1d", 0, 86400},
+		{"2 days", "2d", 86400, 172800},
+		{"1 week", "1w", 6 * 86400, 7 * 86400},
+		{"2 weeks", "2w", 13 * 86400, 14 * 86400},
+		{"1 month", "1m", 28 * 86400, 31 * 86400},
+		{"2 months", "2m", 2 * 28 * 86400, 2 * 31 * 86400},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			slackLimit, oldestStr, latestStr, err := limitByExpression(tt.input, defaultConversationsExpressionLimit)
+			if err != nil {
+				t.Fatalf("expected no error for %q, got %v", tt.input, err)
+			}
+			if slackLimit != 100 {
+				t.Errorf("expected slackLimit=100 for %q, got %d", tt.input, slackLimit)
+			}
+
+			// Parse the "1234567890.000000" format back to an integer
+			o, err := strconv.ParseInt(strings.TrimSuffix(oldestStr, ".000000"), 10, 64)
+			if err != nil {
+				t.Fatalf("invalid oldest timestamp %q: %v", oldestStr, err)
+			}
+			l, err := strconv.ParseInt(strings.TrimSuffix(latestStr, ".000000"), 10, 64)
+			if err != nil {
+				t.Fatalf("invalid latest timestamp %q: %v", latestStr, err)
+			}
+
+			if l <= o {
+				t.Errorf("for %q expected latest(%d) > oldest(%d)", tt.input, l, o)
+			}
+			diff := l - o
+			if diff < tt.minSecs || diff >= tt.maxSecs {
+				t.Errorf(
+					"for %q expected span in [%d, %d), got %d",
+					tt.input, tt.minSecs, tt.maxSecs, diff,
+				)
+			}
+		})
+	}
+}
+
+func TestLimitByExpression_Invalid(t *testing.T) {
+	invalid := []string{
+		"d",   // too short
+		"0d",  // zero
+		"-1d", // negative
+		"1x",  // bad suffix
+		"1",   // missing suffix
+		"01",  // no suffix + zero value
+	}
+
+	for _, input := range invalid {
+		t.Run(input, func(t *testing.T) {
+			_, _, _, err := limitByExpression(input, defaultConversationsExpressionLimit)
+			if err == nil {
+				t.Errorf("expected error for %q, got nil", input)
 			}
 		})
 	}

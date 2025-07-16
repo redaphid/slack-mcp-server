@@ -41,7 +41,7 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 		),
 		mcp.WithString("limit",
 			mcp.DefaultString("1d"),
-			mcp.Description("Limit of messages to fetch in format of maximum ranges of time (e.g. 1d - 1 day, 30d - 30 days, 90d - 90 days which is a default limit for free tier history) or number of messages (e.g. 50). Must be empty when 'cursor' is provided."),
+			mcp.Description("Limit of messages to fetch in format of maximum ranges of time (e.g. 1d - 1 day, 1w - 1 week, 30d - 30 days, 90d - 90 days which is a default limit for free tier history) or number of messages (e.g. 50). Must be empty when 'cursor' is provided."),
 		),
 	), conversationsHandler.ConversationsHistoryHandler)
 
