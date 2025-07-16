@@ -340,6 +340,7 @@ func TestLimitByExpression_Valid(t *testing.T) {
 		minSecs int64 // inclusive
 		maxSecs int64 // exclusive
 	}{
+		{"1 day", "", 0, 86400}, // default case with no input test
 		{"1 day", "1d", 0, 86400},
 		{"2 days", "2d", 86400, 172800},
 		{"1 week", "1w", 6 * 86400, 7 * 86400},
