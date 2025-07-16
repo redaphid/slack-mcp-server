@@ -15,6 +15,7 @@ import (
 
 	"github.com/gocarina/gocsv"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
+	"github.com/korotovsky/slack-mcp-server/pkg/server/auth"
 	"github.com/korotovsky/slack-mcp-server/pkg/text"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/slack-go/slack"
@@ -30,6 +31,12 @@ type Message struct {
 	Text     string `json:"text"`
 	Time     string `json:"time"`
 	Cursor   string `json:"cursor"`
+}
+
+type User struct {
+	UserID   string `json:"userID"`
+	UserName string `json:"userName"`
+	RealName string `json:"realName"`
 }
 
 type conversationParams struct {
@@ -75,13 +82,59 @@ func NewConversationsHandler(apiProvider *provider.ApiProvider) *ConversationsHa
 	}
 }
 
+func (ch *ConversationsHandler) UsersResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	// mark3labs/mcp-go does not support middlewares for resources.
+	if authenticated, err := auth.IsAuthenticated(ctx, ch.apiProvider.ServerTransport()); !authenticated {
+		return nil, err
+	}
+
+	if ready, err := ch.apiProvider.IsReady(); !ready {
+		return nil, err
+	}
+
+	_, ar, err := ch.apiProvider.ProvideGeneric()
+	if err != nil {
+		return nil, err
+	}
+
+	ws, err := text.Workspace(ar.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse workspace from URL: %v", err)
+	}
+
+	usersMaps := ch.apiProvider.ProvideUsersMap()
+	users := usersMaps.Users
+
+	usersList := make([]User, 0, len(users))
+	for _, user := range users {
+		usersList = append(usersList, User{
+			UserID:   user.ID,
+			UserName: user.Name,
+			RealName: user.RealName,
+		})
+	}
+
+	csvBytes, err := gocsv.MarshalBytes(&usersList)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.ResourceContents{
+		mcp.TextResourceContents{
+			URI:      "slack://" + ws + "/users",
+			MIMEType: "text/csv",
+			Text:     string(csvBytes),
+		},
+	}, nil
+}
+
 func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	params, err := ch.parseParamsToolAddMessage(request)
 	if err != nil {
 		return nil, err
 	}
 
-	api, err := ch.apiProvider.ProvideGeneric()
+	api, _, err := ch.apiProvider.ProvideGeneric()
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +193,7 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		return nil, err
 	}
 
-	api, err := ch.apiProvider.ProvideGeneric()
+	api, _, err := ch.apiProvider.ProvideGeneric()
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +232,7 @@ func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context,
 		return nil, errors.New("thread_ts must be a string")
 	}
 
-	api, err := ch.apiProvider.ProvideGeneric()
+	api, _, err := ch.apiProvider.ProvideGeneric()
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +267,7 @@ func (ch *ConversationsHandler) ConversationsSearchHandler(ctx context.Context, 
 		return nil, err
 	}
 
-	api, err := ch.apiProvider.ProvideGeneric()
+	api, _, err := ch.apiProvider.ProvideGeneric()
 	if err != nil {
 		return nil, err
 	}

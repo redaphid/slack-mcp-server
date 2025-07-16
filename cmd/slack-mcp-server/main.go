@@ -27,11 +27,8 @@ func main() {
 		log.Fatalf("error in SLACK_MCP_ADD_MESSAGE_TOOL: %v", err)
 	}
 
-	p := provider.New()
-
-	s := server.NewMCPServer(p,
-		transport,
-	)
+	p := provider.New(transport)
+	s := server.NewMCPServer(p)
 
 	go func() {
 		newUsersWatcher(p)()

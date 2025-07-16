@@ -81,6 +81,34 @@ Get list of channels
   - `limit` (number, default: 100): The maximum number of items to return. Must be an integer between 1 and 1000 (maximum 999).
   - `cursor` (string, optional): Cursor for pagination. Use the value of the last row and column in the response as next_cursor field returned from the previous request.
 
+## Resources
+
+The Slack MCP Server exposes two special directory resources for easy access to workspace metadata:
+
+### 1. `slack://<workspace>/channels` — Directory of Channels
+
+Fetches a CSV directory of all channels in the workspace, including public channels, private channels, DMs, and group DMs.
+
+- **URI:** `slack://<workspace>/channels`
+- **Format:** `text/csv`
+- **Fields:**
+  - `id`: Channel ID (e.g., `C1234567890`)
+  - `name`: Channel name (e.g., `#general`, `@username_dm`)
+  - `topic`: Channel topic (if any)
+  - `purpose`: Channel purpose/description
+  - `memberCount`: Number of members in the channel
+
+### 2. `slack://<workspace>/users` — Directory of Users
+
+Fetches a CSV directory of all users in the workspace.
+
+- **URI:** `slack://<workspace>/users`
+- **Format:** `text/csv`
+- **Fields:**
+  - `userID`: User ID (e.g., `U1234567890`)
+  - `userName`: Slack username (e.g., `john`)
+  - `realName`: User’s real name (e.g., `John Doe`)
+
 ## Setup Guide
 
 - [Authentication Setup](docs/01-authentication-setup.md)
