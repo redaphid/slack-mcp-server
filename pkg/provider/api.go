@@ -247,6 +247,7 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 	}
 
 	optionLimit := slack.GetUsersOptionLimit(1000)
+	usersCounter := 0
 
 	client, _, err := ap.ProvideGeneric()
 	if err != nil {
@@ -264,6 +265,19 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 	for _, user := range users {
 		ap.users[user.ID] = user
 		ap.usersInv[user.Name] = user.ID
+		usersCounter++
+	}
+
+	users, err = ap.GetSlackConnect(ctx)
+	if err != nil {
+		log.Printf("Failed to fetch users from Slack Connect: %v", err)
+		return err
+	}
+
+	for _, user := range users {
+		ap.users[user.ID] = user
+		ap.usersInv[user.Name] = user.ID
+		usersCounter++
 	}
 
 	if data, err := json.MarshalIndent(users, "", "  "); err != nil {
@@ -272,11 +286,11 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 		if err := ioutil.WriteFile(ap.usersCache, data, 0644); err != nil {
 			log.Printf("Failed to write cache file %q: %v", ap.usersCache, err)
 		} else {
-			log.Printf("Wrote %d users to cache %q", len(users), ap.usersCache)
+			log.Printf("Wrote %d users to cache %q", usersCounter, ap.usersCache)
 		}
 	}
 
-	log.Printf("Cached %d users into %q", len(users), ap.usersCache)
+	log.Printf("Cached %d users into %q", usersCounter, ap.usersCache)
 	ap.usersReady = true
 
 	return nil
@@ -314,6 +328,52 @@ func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
 	ap.channelsReady = true
 
 	return nil
+}
+
+func (ap *ApiProvider) GetSlackConnect(ctx context.Context) ([]slack.User, error) {
+	client, _, err := ap.ProvideGeneric()
+	if err != nil {
+		return nil, err
+	}
+
+	eClient, _, err := ap.ProvideEnterprise()
+	if err != nil {
+		log.Printf("Failed to provide enterprise client: %v", err)
+		return nil, err
+	}
+
+	boot, err := eClient.ClientUserBoot(ctx)
+	if err != nil {
+		log.Printf("Failed to fetch client user boot: %v", err)
+		return nil, err
+	}
+
+	var collectedIDs []string
+	for _, im := range boot.IMs {
+		if !im.IsShared && !im.IsExtShared {
+			continue
+		}
+
+		_, ok := ap.users[im.User]
+		if !ok {
+			collectedIDs = append(collectedIDs, im.User)
+		}
+	}
+
+	res := make([]slack.User, 0, len(collectedIDs))
+	if len(collectedIDs) > 0 {
+		usersInfo, err := client.GetUsersInfo(strings.Join(collectedIDs, ","))
+		if err != nil {
+			log.Printf("Failed to fetch users info for shared IMs: %v", err)
+			return nil, err
+		}
+
+		for _, u := range *usersInfo {
+			res = append(res, u)
+		}
+	}
+
+	return res, nil
 }
 
 func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) []Channel {
