@@ -248,6 +248,7 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 
 	optionLimit := slack.GetUsersOptionLimit(1000)
 	usersCounter := 0
+	var list = []slack.User{}
 
 	client, _, err := ap.ProvideGeneric()
 	if err != nil {
@@ -260,6 +261,8 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 	if err != nil {
 		log.Printf("Failed to fetch users: %v", err)
 		return err
+	} else {
+		list = append(list, users...)
 	}
 
 	for _, user := range users {
@@ -272,6 +275,8 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 	if err != nil {
 		log.Printf("Failed to fetch users from Slack Connect: %v", err)
 		return err
+	} else {
+		list = append(list, users...)
 	}
 
 	for _, user := range users {
@@ -280,7 +285,7 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 		usersCounter++
 	}
 
-	if data, err := json.MarshalIndent(users, "", "  "); err != nil {
+	if data, err := json.MarshalIndent(list, "", "  "); err != nil {
 		log.Printf("Failed to marshal users for cache: %v", err)
 	} else {
 		if err := ioutil.WriteFile(ap.usersCache, data, 0644); err != nil {
