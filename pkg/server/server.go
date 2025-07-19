@@ -195,7 +195,12 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer
 }
 
 func (s *MCPServer) ServeSSE(addr string) *server.SSEServer {
-	s.logger.Info("Creating SSE server", zap.String("address", addr))
+	s.logger.Info("Creating SSE server",
+		zap.String("version", version.Version),
+		zap.String("build_time", version.BuildTime),
+		zap.String("commit_hash", version.CommitHash),
+		zap.String("address", addr),
+	)
 	return server.NewSSEServer(s.server,
 		server.WithBaseURL(fmt.Sprintf("http://%s", addr)),
 		server.WithSSEContextFunc(auth.AuthFromRequest(s.logger)),
@@ -203,7 +208,11 @@ func (s *MCPServer) ServeSSE(addr string) *server.SSEServer {
 }
 
 func (s *MCPServer) ServeStdio() error {
-	s.logger.Info("Starting STDIO server")
+	s.logger.Info("Starting STDIO server",
+		zap.String("version", version.Version),
+		zap.String("build_time", version.BuildTime),
+		zap.String("commit_hash", version.CommitHash),
+	)
 	err := server.ServeStdio(s.server)
 	if err != nil {
 		s.logger.Error("STDIO server error", zap.Error(err))
