@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/korotovsky/slack-mcp-server/pkg/transport"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/slack-go/slack"
+	"go.uber.org/zap"
 )
 
 const usersNotReadyMsg = "users cache is not ready yet, sync process is still running... please wait"
@@ -86,6 +86,7 @@ type MCPSlackClient struct {
 type ApiProvider struct {
 	transport string
 	client    SlackAPI
+	logger    *zap.Logger
 
 	users      map[string]slack.User
 	usersInv   map[string]string
@@ -98,8 +99,8 @@ type ApiProvider struct {
 	channelsReady bool
 }
 
-func NewMCPSlackClient(authProvider auth.Provider) (*MCPSlackClient, error) {
-	httpClient := provideHTTPClient(authProvider.Cookies())
+func NewMCPSlackClient(authProvider auth.Provider, logger *zap.Logger) (*MCPSlackClient, error) {
+	httpClient := provideHTTPClient(authProvider.Cookies(), logger)
 
 	slackClient := slack.New(authProvider.SlackToken(),
 		slack.OptionHTTPClient(httpClient),
@@ -145,6 +146,18 @@ func NewMCPSlackClient(authProvider auth.Provider) (*MCPSlackClient, error) {
 }
 
 func (c *MCPSlackClient) AuthTest() (*slack.AuthTestResponse, error) {
+	if os.Getenv("SLACK_MCP_XOXP_TOKEN") == "demo" || (os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo") {
+		return &slack.AuthTestResponse{
+			URL:          "https://_.slack.com",
+			Team:         "Demo Team",
+			User:         "Username",
+			TeamID:       "TEAM123456",
+			UserID:       "U1234567890",
+			EnterpriseID: "",
+			BotID:        "",
+		}, nil
+	}
+
 	if c.authResponse != nil {
 		return c.authResponse, nil
 	}
@@ -254,7 +267,7 @@ func (c *MCPSlackClient) Raw() struct {
 	}
 }
 
-func New(transport string) *ApiProvider {
+func New(transport string, logger *zap.Logger) *ApiProvider {
 	var (
 		authProvider auth.ValueAuth
 		err          error
@@ -265,10 +278,10 @@ func New(transport string) *ApiProvider {
 	if xoxpToken != "" {
 		authProvider, err = auth.NewValueAuth(xoxpToken, "")
 		if err != nil {
-			panic(err)
+			logger.Fatal("Failed to create auth provider with XOXP token", zap.Error(err))
 		}
 
-		return newWithXOXP(transport, authProvider)
+		return newWithXOXP(transport, authProvider, logger)
 	}
 
 	// Fall back to XOXC/XOXD tokens (session-based)
@@ -276,18 +289,23 @@ func New(transport string) *ApiProvider {
 	xoxdToken := os.Getenv("SLACK_MCP_XOXD_TOKEN")
 
 	if xoxcToken == "" || xoxdToken == "" {
-		panic("Authentication required: Either SLACK_MCP_XOXP_TOKEN (User OAuth) or both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN (session-based) environment variables must be provided")
+		logger.Fatal("Authentication required: Either SLACK_MCP_XOXP_TOKEN (User OAuth) or both SLACK_MCP_XOXC_TOKEN and SLACK_MCP_XOXD_TOKEN (session-based) environment variables must be provided")
 	}
 
 	authProvider, err = auth.NewValueAuth(xoxcToken, xoxdToken)
 	if err != nil {
-		panic(err)
+		logger.Fatal("Failed to create auth provider with XOXC/XOXD tokens", zap.Error(err))
 	}
 
-	return newWithXOXC(transport, authProvider)
+	return newWithXOXC(transport, authProvider, logger)
 }
 
-func newWithXOXP(transport string, authProvider auth.ValueAuth) *ApiProvider {
+func newWithXOXP(transport string, authProvider auth.ValueAuth, logger *zap.Logger) *ApiProvider {
+	var (
+		client *MCPSlackClient
+		err    error
+	)
+
 	usersCache := os.Getenv("SLACK_MCP_USERS_CACHE")
 	if usersCache == "" {
 		usersCache = ".users_cache.json"
@@ -298,14 +316,19 @@ func newWithXOXP(transport string, authProvider auth.ValueAuth) *ApiProvider {
 		channelsCache = ".channels_cache.json"
 	}
 
-	client, err := NewMCPSlackClient(authProvider)
-	if err != nil {
-		panic(err)
+	if os.Getenv("SLACK_MCP_XOXP_TOKEN") == "demo" || (os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo") {
+		logger.Info("Demo credentials are set, skip.")
+	} else {
+		client, err = NewMCPSlackClient(authProvider, logger)
+		if err != nil {
+			logger.Fatal("Failed to create MCP Slack client", zap.Error(err))
+		}
 	}
 
 	return &ApiProvider{
 		transport: transport,
 		client:    client,
+		logger:    logger,
 
 		users:      make(map[string]slack.User),
 		usersInv:   map[string]string{},
@@ -317,7 +340,12 @@ func newWithXOXP(transport string, authProvider auth.ValueAuth) *ApiProvider {
 	}
 }
 
-func newWithXOXC(transport string, authProvider auth.ValueAuth) *ApiProvider {
+func newWithXOXC(transport string, authProvider auth.ValueAuth, logger *zap.Logger) *ApiProvider {
+	var (
+		client *MCPSlackClient
+		err    error
+	)
+
 	usersCache := os.Getenv("SLACK_MCP_USERS_CACHE")
 	if usersCache == "" {
 		usersCache = ".users_cache.json"
@@ -328,14 +356,19 @@ func newWithXOXC(transport string, authProvider auth.ValueAuth) *ApiProvider {
 		channelsCache = ".channels_cache_v2.json"
 	}
 
-	client, err := NewMCPSlackClient(authProvider)
-	if err != nil {
-		panic(err)
+	if os.Getenv("SLACK_MCP_XOXP_TOKEN") == "demo" || (os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo") {
+		logger.Info("Demo credentials are set, skip.")
+	} else {
+		client, err = NewMCPSlackClient(authProvider, logger)
+		if err != nil {
+			logger.Fatal("Failed to create MCP Slack client", zap.Error(err))
+		}
 	}
 
 	return &ApiProvider{
 		transport: transport,
 		client:    client,
+		logger:    logger,
 
 		users:      make(map[string]slack.User),
 		usersInv:   map[string]string{},
@@ -357,13 +390,17 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 	if data, err := ioutil.ReadFile(ap.usersCache); err == nil {
 		var cachedUsers []slack.User
 		if err := json.Unmarshal(data, &cachedUsers); err != nil {
-			log.Printf("Failed to unmarshal %s: %v; will refetch", ap.usersCache, err)
+			ap.logger.Warn("Failed to unmarshal users cache, will refetch",
+				zap.String("cache_file", ap.usersCache),
+				zap.Error(err))
 		} else {
 			for _, u := range cachedUsers {
 				ap.users[u.ID] = u
 				ap.usersInv[u.Name] = u.ID
 			}
-			log.Printf("Loaded %d users from cache %q", len(cachedUsers), ap.usersCache)
+			ap.logger.Info("Loaded users from cache",
+				zap.Int("count", len(cachedUsers)),
+				zap.String("cache_file", ap.usersCache))
 			ap.usersReady = true
 			return nil
 		}
@@ -373,7 +410,7 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 		optionLimit,
 	)
 	if err != nil {
-		log.Printf("Failed to fetch users: %v", err)
+		ap.logger.Error("Failed to fetch users", zap.Error(err))
 		return err
 	} else {
 		list = append(list, users...)
@@ -387,7 +424,7 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 
 	users, err = ap.GetSlackConnect(ctx)
 	if err != nil {
-		log.Printf("Failed to fetch users from Slack Connect: %v", err)
+		ap.logger.Error("Failed to fetch users from Slack Connect", zap.Error(err))
 		return err
 	} else {
 		list = append(list, users...)
@@ -400,16 +437,19 @@ func (ap *ApiProvider) RefreshUsers(ctx context.Context) error {
 	}
 
 	if data, err := json.MarshalIndent(list, "", "  "); err != nil {
-		log.Printf("Failed to marshal users for cache: %v", err)
+		ap.logger.Error("Failed to marshal users for cache", zap.Error(err))
 	} else {
 		if err := ioutil.WriteFile(ap.usersCache, data, 0644); err != nil {
-			log.Printf("Failed to write cache file %q: %v", ap.usersCache, err)
+			ap.logger.Error("Failed to write cache file",
+				zap.String("cache_file", ap.usersCache),
+				zap.Error(err))
 		} else {
-			log.Printf("Wrote %d users to cache %q", usersCounter, ap.usersCache)
+			ap.logger.Info("Wrote users to cache",
+				zap.Int("count", usersCounter),
+				zap.String("cache_file", ap.usersCache))
 		}
 	}
 
-	log.Printf("Cached %d users into %q", usersCounter, ap.usersCache)
 	ap.usersReady = true
 
 	return nil
@@ -419,13 +459,17 @@ func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
 	if data, err := ioutil.ReadFile(ap.channelsCache); err == nil {
 		var cachedChannels []Channel
 		if err := json.Unmarshal(data, &cachedChannels); err != nil {
-			log.Printf("Failed to unmarshal %+v: %v; will refetch", cachedChannels, err)
+			ap.logger.Warn("Failed to unmarshal channels cache, will refetch",
+				zap.String("cache_file", ap.channelsCache),
+				zap.Error(err))
 		} else {
 			for _, c := range cachedChannels {
 				ap.channels[c.ID] = c
 				ap.channelsInv[c.Name] = c.ID
 			}
-			log.Printf("Loaded %d channels from cache %q", len(cachedChannels), ap.channelsCache)
+			ap.logger.Info("Loaded channels from cache",
+				zap.Int("count", len(cachedChannels)),
+				zap.String("cache_file", ap.channelsCache))
 			ap.channelsReady = true
 			return nil
 		}
@@ -434,16 +478,19 @@ func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
 	channels := ap.GetChannels(ctx, AllChanTypes)
 
 	if data, err := json.MarshalIndent(channels, "", "  "); err != nil {
-		log.Printf("Failed to marshal channels for cache: %v", err)
+		ap.logger.Error("Failed to marshal channels for cache", zap.Error(err))
 	} else {
 		if err := ioutil.WriteFile(ap.channelsCache, data, 0644); err != nil {
-			log.Printf("Failed to write cache file %q: %v", ap.channelsCache, err)
+			ap.logger.Error("Failed to write cache file",
+				zap.String("cache_file", ap.channelsCache),
+				zap.Error(err))
 		} else {
-			log.Printf("Wrote %d channels to cache %q", len(channels), ap.channelsCache)
+			ap.logger.Info("Wrote channels to cache",
+				zap.Int("count", len(channels)),
+				zap.String("cache_file", ap.channelsCache))
 		}
 	}
 
-	log.Printf("Cached %d channels into %q", len(channels), ap.channelsCache)
 	ap.channelsReady = true
 
 	return nil
@@ -452,7 +499,7 @@ func (ap *ApiProvider) RefreshChannels(ctx context.Context) error {
 func (ap *ApiProvider) GetSlackConnect(ctx context.Context) ([]slack.User, error) {
 	boot, err := ap.client.ClientUserBoot(ctx)
 	if err != nil {
-		log.Printf("Failed to fetch client user boot: %v", err)
+		ap.logger.Error("Failed to fetch client user boot", zap.Error(err))
 		return nil, err
 	}
 
@@ -472,7 +519,7 @@ func (ap *ApiProvider) GetSlackConnect(ctx context.Context) ([]slack.User, error
 	if len(collectedIDs) > 0 {
 		usersInfo, err := ap.client.GetUsersInfo(strings.Join(collectedIDs, ","))
 		if err != nil {
-			log.Printf("Failed to fetch users info for shared IMs: %v", err)
+			ap.logger.Error("Failed to fetch users info for shared IMs", zap.Error(err))
 			return nil, err
 		}
 
@@ -507,7 +554,7 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 	for {
 		channels, nextcur, err = ap.client.GetConversationsContext(ctx, params)
 		if err != nil {
-			log.Printf("Failed to fetch channels: %v", err)
+			ap.logger.Error("Failed to fetch channels", zap.Error(err))
 			break
 		}
 
@@ -599,12 +646,14 @@ func (ap *ApiProvider) Slack() SlackAPI {
 	return ap.client
 }
 
-func provideHTTPClient(cookies []*http.Cookie) *http.Client {
+func provideHTTPClient(cookies []*http.Cookie, logger *zap.Logger) *http.Client {
 	var proxy func(*http.Request) (*url.URL, error)
 	if proxyURL := os.Getenv("SLACK_MCP_PROXY"); proxyURL != "" {
 		parsed, err := url.Parse(proxyURL)
 		if err != nil {
-			log.Fatalf("Failed to parse proxy URL: %v", err)
+			logger.Fatal("Failed to parse proxy URL",
+				zap.String("proxy_url", proxyURL),
+				zap.Error(err))
 		}
 
 		proxy = http.ProxyURL(parsed)
@@ -620,18 +669,20 @@ func provideHTTPClient(cookies []*http.Cookie) *http.Client {
 	if localCertFile := os.Getenv("SLACK_MCP_SERVER_CA"); localCertFile != "" {
 		certs, err := ioutil.ReadFile(localCertFile)
 		if err != nil {
-			log.Fatalf("Failed to append %q to RootCAs: %v", localCertFile, err)
+			logger.Fatal("Failed to read local certificate file",
+				zap.String("cert_file", localCertFile),
+				zap.Error(err))
 		}
 
 		if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
-			log.Println("No certs appended, using system certs only")
+			logger.Warn("No certs appended, using system certs only")
 		}
 	}
 
 	insecure := false
 	if os.Getenv("SLACK_MCP_SERVER_CA_INSECURE") != "" {
 		if localCertFile := os.Getenv("SLACK_MCP_SERVER_CA"); localCertFile != "" {
-			log.Fatalf("Variable SLACK_MCP_SERVER_CA is at the same time with SLACK_MCP_SERVER_CA_INSECURE")
+			logger.Fatal("SLACK_MCP_SERVER_CA and SLACK_MCP_SERVER_CA_INSECURE cannot be used together")
 		}
 		insecure = true
 	}

@@ -7,24 +7,27 @@ import (
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/korotovsky/slack-mcp-server/pkg/server/auth"
 	"github.com/korotovsky/slack-mcp-server/pkg/text"
+	"github.com/korotovsky/slack-mcp-server/pkg/version"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"go.uber.org/zap"
 )
 
 type MCPServer struct {
 	server *server.MCPServer
+	logger *zap.Logger
 }
 
-func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
+func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer {
 	s := server.NewMCPServer(
 		"Slack MCP Server",
-		"1.1.20",
+		version.Version,
 		server.WithLogging(),
 		server.WithRecovery(),
-		server.WithToolHandlerMiddleware(auth.BuildMiddleware(provider.ServerTransport())),
+		server.WithToolHandlerMiddleware(auth.BuildMiddleware(provider.ServerTransport(), logger)),
 	)
 
-	conversationsHandler := handler.NewConversationsHandler(provider)
+	conversationsHandler := handler.NewConversationsHandler(provider, logger)
 
 	s.AddTool(mcp.NewTool("conversations_history",
 		mcp.WithDescription("Get messages from the channel (or DM) by channel_id, the last row/column in the response is used as 'cursor' parameter for pagination if not empty"),
@@ -53,7 +56,7 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 		),
 		mcp.WithString("thread_ts",
 			mcp.Required(),
-			mcp.Description("Unique identifier of either a thread’s parent message or a message in the thread. ts must be the timestamp in format 1234567890.123456 of an existing message with 0 or more replies."),
+			mcp.Description("Unique identifier of either a thread's parent message or a message in the thread. ts must be the timestamp in format 1234567890.123456 of an existing message with 0 or more replies."),
 		),
 		mcp.WithBoolean("include_activity_messages",
 			mcp.Description("If true, the response will include activity messages such as 'channel_join' or 'channel_leave'. Default is boolean false."),
@@ -75,7 +78,7 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 			mcp.Description("ID of the channel in format Cxxxxxxxxxx or its name starting with #... or @... aka #general or @username_dm."),
 		),
 		mcp.WithString("thread_ts",
-			mcp.Description("Unique identifier of either a thread’s parent message or a message in the thread_ts must be the timestamp in format 1234567890.123456 of an existing message with 0 or more replies. Optional, if not provided the message will be added to the channel itself, otherwise it will be added to the thread."),
+			mcp.Description("Unique identifier of either a thread's parent message or a message in the thread_ts must be the timestamp in format 1234567890.123456 of an existing message with 0 or more replies. Optional, if not provided the message will be added to the channel itself, otherwise it will be added to the thread."),
 		),
 		mcp.WithString("payload",
 			mcp.Description("Message payload in specified content_type format. Example: 'Hello, world!' for text/plain or '# Hello, world!' for text/markdown."),
@@ -128,7 +131,7 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 		),
 	), conversationsHandler.ConversationsSearchHandler)
 
-	channelsHandler := handler.NewChannelsHandler(provider)
+	channelsHandler := handler.NewChannelsHandler(provider, logger)
 
 	s.AddTool(mcp.NewTool("channels_list",
 		mcp.WithDescription("Get list of channels"),
@@ -148,13 +151,26 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 		),
 	), channelsHandler.ChannelsHandler)
 
+	logger.Info("Authenticating with Slack API...")
 	ar, err := provider.Slack().AuthTest()
 	if err != nil {
+		logger.Fatal("Failed to authenticate with Slack", zap.Error(err))
 		panic(fmt.Sprintf("Failed to authenticate: %v", err))
 	}
 
+	logger.Info("Successfully authenticated with Slack",
+		zap.String("team", ar.Team),
+		zap.String("user", ar.User),
+		zap.String("enterprise", ar.EnterpriseID),
+		zap.String("url", ar.URL),
+	)
+
 	ws, err := text.Workspace(ar.URL)
 	if err != nil {
+		logger.Fatal("Failed to parse workspace from URL",
+			zap.String("url", ar.URL),
+			zap.Error(err),
+		)
 		panic(fmt.Sprintf("Failed to parse workspace from URL: %v", err))
 	}
 
@@ -174,16 +190,23 @@ func NewMCPServer(provider *provider.ApiProvider) *MCPServer {
 
 	return &MCPServer{
 		server: s,
+		logger: logger,
 	}
 }
 
 func (s *MCPServer) ServeSSE(addr string) *server.SSEServer {
+	s.logger.Info("Creating SSE server", zap.String("address", addr))
 	return server.NewSSEServer(s.server,
 		server.WithBaseURL(fmt.Sprintf("http://%s", addr)),
-		server.WithSSEContextFunc(auth.AuthFromRequest),
+		server.WithSSEContextFunc(auth.AuthFromRequest(s.logger)),
 	)
 }
 
 func (s *MCPServer) ServeStdio() error {
-	return server.ServeStdio(s.server)
+	s.logger.Info("Starting STDIO server")
+	err := server.ServeStdio(s.server)
+	if err != nil {
+		s.logger.Error("STDIO server error", zap.Error(err))
+	}
+	return err
 }
