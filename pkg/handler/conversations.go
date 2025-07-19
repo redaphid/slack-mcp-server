@@ -484,8 +484,10 @@ func (ch *ConversationsHandler) parseParamsToolAddMessage(request mcp.CallToolRe
 	if toolConfig == "" {
 		ch.logger.Error("Add-message tool disabled by default")
 		return nil, errors.New(
-			"by default, the conversations_add_message tool is disabled to guard Slack workspaces against accidental spamming. " +
-				"To enable it, set the SLACK_MCP_ADD_MESSAGE_TOOL environment variable to true, 1, or comma separated list of channels",
+			"by default, the conversations_add_message tool is disabled to guard Slack workspaces against accidental spamming." +
+				"To enable it, set the SLACK_MCP_ADD_MESSAGE_TOOL environment variable to true, 1, or comma separated list of channels" +
+				"to limit where the MCP can post messages, e.g. 'SLACK_MCP_ADD_MESSAGE_TOOL=C1234567890,D0987654321', 'SLACK_MCP_ADD_MESSAGE_TOOL=!C1234567890'" +
+				"to enable all except one or 'SLACK_MCP_ADD_MESSAGE_TOOL=true' for all channels and DMs",
 		)
 	}
 
