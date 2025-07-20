@@ -73,7 +73,6 @@ func (ch *ChannelsHandler) ChannelsResource(ctx context.Context, request mcp.Rea
 		)
 		return nil, fmt.Errorf("failed to parse workspace from URL: %v", err)
 	}
-	ch.logger.Debug("Workspace parsed", zap.String("workspace", ws))
 
 	channels := ch.apiProvider.ProvideChannelsMaps().Channels
 	ch.logger.Debug("Retrieved channels from provider", zap.Int("count", len(channels)))

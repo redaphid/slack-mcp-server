@@ -120,7 +120,6 @@ func (ch *ConversationsHandler) UsersResource(ctx context.Context, request mcp.R
 		)
 		return nil, fmt.Errorf("failed to parse workspace from URL: %v", err)
 	}
-	ch.logger.Debug("Workspace parsed", zap.String("workspace", ws))
 
 	// collect users
 	usersMaps := ch.apiProvider.ProvideUsersMap()
