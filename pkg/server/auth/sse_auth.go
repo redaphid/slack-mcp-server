@@ -26,17 +26,22 @@ func validateToken(ctx context.Context, logger *zap.Logger) (bool, error) {
 	// no configured token means no authentication
 	keyA := os.Getenv("SLACK_MCP_SSE_API_KEY")
 	if keyA == "" {
-		logger.Debug("No SSE API key configured, skipping authentication")
+		logger.Debug("No SSE API key configured, skipping authentication",
+			zap.String("context", "http"),
+		)
 		return true, nil
 	}
 
 	keyB, ok := ctx.Value(authKey{}).(string)
 	if !ok {
-		logger.Warn("Missing auth token in context")
+		logger.Warn("Missing auth token in context",
+			zap.String("context", "http"),
+		)
 		return false, fmt.Errorf("missing auth")
 	}
 
 	logger.Debug("Validating auth token",
+		zap.String("context", "http"),
 		zap.Bool("has_bearer_prefix", strings.HasPrefix(keyB, "Bearer ")),
 	)
 
@@ -45,11 +50,15 @@ func validateToken(ctx context.Context, logger *zap.Logger) (bool, error) {
 	}
 
 	if subtle.ConstantTimeCompare([]byte(keyA), []byte(keyB)) != 1 {
-		logger.Warn("Invalid auth token provided")
+		logger.Warn("Invalid auth token provided",
+			zap.String("context", "http"),
+		)
 		return false, fmt.Errorf("invalid auth token")
 	}
 
-	logger.Debug("Auth token validated successfully")
+	logger.Debug("Auth token validated successfully",
+		zap.String("context", "http"),
+	)
 	return true, nil
 }
 
@@ -57,11 +66,6 @@ func validateToken(ctx context.Context, logger *zap.Logger) (bool, error) {
 func AuthFromRequest(logger *zap.Logger) func(context.Context, *http.Request) context.Context {
 	return func(ctx context.Context, r *http.Request) context.Context {
 		authHeader := r.Header.Get("Authorization")
-		logger.Debug("Extracting auth from request",
-			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path),
-			zap.Bool("has_auth_header", authHeader != ""),
-		)
 		return withAuthKey(ctx, authHeader)
 	}
 }
@@ -71,12 +75,14 @@ func BuildMiddleware(transport string, logger *zap.Logger) server.ToolHandlerMid
 	return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
 		return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			logger.Debug("Auth middleware invoked",
+				zap.String("context", "http"),
 				zap.String("transport", transport),
 				zap.String("tool", req.Params.Name),
 			)
 
 			if authenticated, err := IsAuthenticated(ctx, transport, logger); !authenticated {
 				logger.Error("Authentication failed",
+					zap.String("context", "http"),
 					zap.String("transport", transport),
 					zap.String("tool", req.Params.Name),
 					zap.Error(err),
@@ -85,6 +91,7 @@ func BuildMiddleware(transport string, logger *zap.Logger) server.ToolHandlerMid
 			}
 
 			logger.Debug("Authentication successful",
+				zap.String("context", "http"),
 				zap.String("transport", transport),
 				zap.String("tool", req.Params.Name),
 			)
@@ -98,28 +105,42 @@ func BuildMiddleware(transport string, logger *zap.Logger) server.ToolHandlerMid
 func IsAuthenticated(ctx context.Context, transport string, logger *zap.Logger) (bool, error) {
 	switch transport {
 	case "stdio":
-		logger.Debug("STDIO transport - no authentication required")
+		logger.Debug("STDIO transport - no authentication required",
+			zap.String("context", "console"),
+		)
 		return true, nil
 
 	case "sse":
-		logger.Debug("SSE transport - validating token")
+		logger.Debug("SSE transport - validating token",
+			zap.String("context", "http"),
+		)
 		authenticated, err := validateToken(ctx, logger)
 
 		if err != nil {
-			logger.Error("SSE authentication error", zap.Error(err))
+			logger.Error("SSE authentication error",
+				zap.String("context", "http"),
+				zap.Error(err),
+			)
 			return false, fmt.Errorf("authentication error: %w", err)
 		}
 
 		if !authenticated {
-			logger.Warn("SSE unauthorized request")
+			logger.Warn("SSE unauthorized request",
+				zap.String("context", "http"),
+			)
 			return false, fmt.Errorf("unauthorized request")
 		}
 
-		logger.Debug("SSE authentication successful")
+		logger.Debug("SSE authentication successful",
+			zap.String("context", "http"),
+		)
 		return true, nil
 
 	default:
-		logger.Error("Unknown transport type", zap.String("transport", transport))
+		logger.Error("Unknown transport type",
+			zap.String("context", "http"),
+			zap.String("transport", transport),
+		)
 		return false, fmt.Errorf("unknown transport type: %s", transport)
 	}
 }

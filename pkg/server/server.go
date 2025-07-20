@@ -1,8 +1,12 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"net/http"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/korotovsky/slack-mcp-server/pkg/handler"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/korotovsky/slack-mcp-server/pkg/server/auth"
@@ -24,6 +28,7 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer
 		version.Version,
 		server.WithLogging(),
 		server.WithRecovery(),
+		server.WithToolHandlerMiddleware(buildLoggerMiddleware(logger)),
 		server.WithToolHandlerMiddleware(auth.BuildMiddleware(provider.ServerTransport(), logger)),
 	)
 
@@ -151,14 +156,19 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer
 		),
 	), channelsHandler.ChannelsHandler)
 
-	logger.Info("Authenticating with Slack API...")
+	logger.Info("Authenticating with Slack API...",
+		zap.String("context", "console"),
+	)
 	ar, err := provider.Slack().AuthTest()
 	if err != nil {
-		logger.Fatal("Failed to authenticate with Slack", zap.Error(err))
-		panic(fmt.Sprintf("Failed to authenticate: %v", err))
+		logger.Fatal("Failed to authenticate with Slack",
+			zap.String("context", "console"),
+			zap.Error(err),
+		)
 	}
 
 	logger.Info("Successfully authenticated with Slack",
+		zap.String("context", "console"),
 		zap.String("team", ar.Team),
 		zap.String("user", ar.User),
 		zap.String("enterprise", ar.EnterpriseID),
@@ -168,10 +178,10 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer
 	ws, err := text.Workspace(ar.URL)
 	if err != nil {
 		logger.Fatal("Failed to parse workspace from URL",
+			zap.String("context", "console"),
 			zap.String("url", ar.URL),
 			zap.Error(err),
 		)
-		panic(fmt.Sprintf("Failed to parse workspace from URL: %v", err))
 	}
 
 	s.AddResource(mcp.NewResource(
@@ -196,6 +206,7 @@ func NewMCPServer(provider *provider.ApiProvider, logger *zap.Logger) *MCPServer
 
 func (s *MCPServer) ServeSSE(addr string) *server.SSEServer {
 	s.logger.Info("Creating SSE server",
+		zap.String("context", "console"),
 		zap.String("version", version.Version),
 		zap.String("build_time", version.BuildTime),
 		zap.String("commit_hash", version.CommitHash),
@@ -203,7 +214,11 @@ func (s *MCPServer) ServeSSE(addr string) *server.SSEServer {
 	)
 	return server.NewSSEServer(s.server,
 		server.WithBaseURL(fmt.Sprintf("http://%s", addr)),
-		server.WithSSEContextFunc(auth.AuthFromRequest(s.logger)),
+		server.WithSSEContextFunc(func(ctx context.Context, r *http.Request) context.Context {
+			ctx = auth.AuthFromRequest(s.logger)(ctx, r)
+
+			return ctx
+		}),
 	)
 }
 
@@ -218,4 +233,32 @@ func (s *MCPServer) ServeStdio() error {
 		s.logger.Error("STDIO server error", zap.Error(err))
 	}
 	return err
+}
+
+func buildLoggerMiddleware(logger *zap.Logger) server.ToolHandlerMiddleware {
+	return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
+		return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			requestID := uuid.New().String()
+
+			logger.Info("Request received",
+				zap.String("request_id", requestID),
+				zap.String("tool", req.Params.Name),
+				zap.Any("params", req.Params),
+			)
+
+			startTime := time.Now()
+
+			res, err := next(ctx, req)
+
+			duration := time.Since(startTime)
+
+			logger.Info("Request finished",
+				zap.String("request_id", requestID),
+				zap.String("tool", req.Params.Name),
+				zap.Duration("duration", duration),
+			)
+
+			return res, err
+		}
+	}
 }

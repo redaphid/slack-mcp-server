@@ -33,7 +33,10 @@ func main() {
 
 	err = validateToolConfig(os.Getenv("SLACK_MCP_ADD_MESSAGE_TOOL"))
 	if err != nil {
-		logger.Fatal("error in SLACK_MCP_ADD_MESSAGE_TOOL", zap.Error(err))
+		logger.Fatal("error in SLACK_MCP_ADD_MESSAGE_TOOL",
+			zap.String("context", "console"),
+			zap.Error(err),
+		)
 	}
 
 	p := provider.New(transport, logger)
@@ -49,7 +52,10 @@ func main() {
 	switch transport {
 	case "stdio":
 		if err := s.ServeStdio(); err != nil {
-			logger.Fatal("Server error", zap.Error(err))
+			logger.Fatal("Server error",
+				zap.String("context", "console"),
+				zap.Error(err),
+			)
 		}
 	case "sse":
 		host := os.Getenv("SLACK_MCP_HOST")
@@ -63,15 +69,26 @@ func main() {
 
 		sseServer := s.ServeSSE(":" + port)
 		logger.Info("SSE server listening on",
+			zap.String("context", "console"),
 			zap.String("host", host),
 			zap.String("port", port),
 		)
-		logger.Info("Slack MCP Server is still warming up caches")
+
+		if ready, _ := p.IsReady(); !ready {
+			logger.Info("Slack MCP Server is still warming up caches",
+				zap.String("context", "console"),
+			)
+		}
+
 		if err := sseServer.Start(host + ":" + port); err != nil {
-			logger.Fatal("Server error", zap.Error(err))
+			logger.Fatal("Server error",
+				zap.String("context", "console"),
+				zap.Error(err),
+			)
 		}
 	default:
 		logger.Fatal("Invalid transport type",
+			zap.String("context", "console"),
 			zap.String("transport", transport),
 			zap.String("allowed", "stdio,sse"),
 		)
@@ -80,24 +97,35 @@ func main() {
 
 func newUsersWatcher(p *provider.ApiProvider, once *sync.Once, logger *zap.Logger) func() {
 	return func() {
-		logger.Info("Caching users collection...")
+		logger.Info("Caching users collection...",
+			zap.String("context", "console"),
+		)
 
 		if os.Getenv("SLACK_MCP_XOXP_TOKEN") == "demo" || (os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo") {
-			logger.Info("Demo credentials are set, skip")
+			logger.Info("Demo credentials are set, skip",
+				zap.String("context", "console"),
+			)
 			return
 		}
 
 		err := p.RefreshUsers(context.Background())
 		if err != nil {
-			logger.Fatal("Error booting provider", zap.Error(err))
+			logger.Fatal("Error booting provider",
+				zap.String("context", "console"),
+				zap.Error(err),
+			)
 		}
 
-		logger.Info("Users cached successfully")
+		logger.Info("Users cached successfully",
+			zap.String("context", "console"),
+		)
 
 		ready, _ := p.IsReady()
 		if ready {
 			once.Do(func() {
-				logger.Info("Slack MCP Server is fully ready")
+				logger.Info("Slack MCP Server is fully ready",
+					zap.String("context", "console"),
+				)
 			})
 		}
 	}
@@ -105,24 +133,35 @@ func newUsersWatcher(p *provider.ApiProvider, once *sync.Once, logger *zap.Logge
 
 func newChannelsWatcher(p *provider.ApiProvider, once *sync.Once, logger *zap.Logger) func() {
 	return func() {
-		logger.Info("Caching channels collection...")
+		logger.Info("Caching channels collection...",
+			zap.String("context", "console"),
+		)
 
 		if os.Getenv("SLACK_MCP_XOXP_TOKEN") == "demo" || (os.Getenv("SLACK_MCP_XOXC_TOKEN") == "demo" && os.Getenv("SLACK_MCP_XOXD_TOKEN") == "demo") {
-			logger.Info("Demo credentials are set, skip.")
+			logger.Info("Demo credentials are set, skip.",
+				zap.String("context", "console"),
+			)
 			return
 		}
 
 		err := p.RefreshChannels(context.Background())
 		if err != nil {
-			logger.Fatal("Error booting provider", zap.Error(err))
+			logger.Fatal("Error booting provider",
+				zap.String("context", "console"),
+				zap.Error(err),
+			)
 		}
 
-		logger.Info("Channels cached successfully.")
+		logger.Info("Channels cached successfully.",
+			zap.String("context", "console"),
+		)
 
 		ready, _ := p.IsReady()
 		if ready {
 			once.Do(func() {
-				logger.Info("Slack MCP Server is fully ready.")
+				logger.Info("Slack MCP Server is fully ready.",
+					zap.String("context", "console"),
+				)
 			})
 		}
 	}
