@@ -640,16 +640,16 @@ func (ch *ConversationsHandler) paramFormatUser(raw string) (string, error) {
 		return fmt.Sprintf("<@%s>", u.ID), nil
 	}
 	if strings.HasPrefix(raw, "<@") {
-		return raw, nil
+		raw = raw[2:]
 	}
 	if strings.HasPrefix(raw, "@") {
 		raw = raw[1:]
 	}
-	uidx, ok := users.UsersInv[raw]
+	uid, ok := users.UsersInv[raw]
 	if !ok {
 		return "", fmt.Errorf("user %q not found", raw)
 	}
-	return fmt.Sprintf("@%s", users.Users[uidx].Name), nil
+	return fmt.Sprintf("<@%s>", uid), nil
 }
 
 func (ch *ConversationsHandler) paramFormatChannel(raw string) (string, error) {

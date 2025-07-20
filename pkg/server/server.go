@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/korotovsky/slack-mcp-server/pkg/handler"
 	"github.com/korotovsky/slack-mcp-server/pkg/provider"
 	"github.com/korotovsky/slack-mcp-server/pkg/server/auth"
@@ -238,10 +237,7 @@ func (s *MCPServer) ServeStdio() error {
 func buildLoggerMiddleware(logger *zap.Logger) server.ToolHandlerMiddleware {
 	return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
 		return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			requestID := uuid.New().String()
-
 			logger.Info("Request received",
-				zap.String("request_id", requestID),
 				zap.String("tool", req.Params.Name),
 				zap.Any("params", req.Params),
 			)
@@ -253,7 +249,6 @@ func buildLoggerMiddleware(logger *zap.Logger) server.ToolHandlerMiddleware {
 			duration := time.Since(startTime)
 
 			logger.Info("Request finished",
-				zap.String("request_id", requestID),
 				zap.String("tool", req.Params.Name),
 				zap.Duration("duration", duration),
 			)
