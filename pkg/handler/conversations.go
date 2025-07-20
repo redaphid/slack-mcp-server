@@ -372,7 +372,7 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 	if ready, err := ch.apiProvider.IsReady(); !ready {
 		if warn && errors.Is(err, provider.ErrUsersNotReady) {
 			ch.logger.Warn(
-				"Slack users sync not ready; you may see raw UIDs instead of names and lose some functionality.",
+				"WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again",
 				zap.Error(err),
 			)
 		}
@@ -448,13 +448,13 @@ func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToo
 		if ready, err := ch.apiProvider.IsReady(); !ready {
 			if errors.Is(err, provider.ErrUsersNotReady) {
 				ch.logger.Warn(
-					"Slack users sync not ready; you may see raw UIDs instead of names and lose some functionality.",
+					"WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again",
 					zap.Error(err),
 				)
 			}
 			if errors.Is(err, provider.ErrChannelsNotReady) {
 				ch.logger.Warn(
-					"Slack channels sync not ready; you may only request by Channel ID, not by name.",
+					"WARNING: Slack channels sync is not ready yet, you may experience some limited functionality and be able to request conversation only by Channel ID, not by its name. Please wait until channels are synced and try again.",
 					zap.Error(err),
 				)
 			}
@@ -740,9 +740,16 @@ func extractThreadTS(rawurl string) (string, error) {
 func parseFlexibleDate(dateStr string) (time.Time, string, error) {
 	dateStr = strings.TrimSpace(dateStr)
 	standardFormats := []string{
-		"2006-01-02", "2006/01/02", "01-02-2006", "01/02-2006",
-		"02-01-2006", "02/01-2006", "Jan 2, 2006", "January 2, 2006",
-		"2 Jan 2006", "2 January 2006",
+		"2006-01-02",      // YYYY-MM-DD
+		"2006/01/02",      // YYYY/MM/DD
+		"01-02-2006",      // MM-DD-YYYY
+		"01/02/2006",      // MM/DD/YYYY
+		"02-01-2006",      // DD-MM-YYYY
+		"02/01/2006",      // DD/MM/YYYY
+		"Jan 2, 2006",     // Jan 2, 2006
+		"January 2, 2006", // January 2, 2006
+		"2 Jan 2006",      // 2 Jan 2006
+		"2 January 2006",  // 2 January 2006
 	}
 	for _, fmtStr := range standardFormats {
 		if t, err := time.Parse(fmtStr, dateStr); err == nil {
@@ -751,10 +758,17 @@ func parseFlexibleDate(dateStr string) (time.Time, string, error) {
 	}
 
 	monthMap := map[string]int{
-		"january": 1, "jan": 1, "february": 2, "feb": 2, "march": 3, "mar": 3,
-		"april": 4, "apr": 4, "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7,
-		"august": 8, "aug": 8, "september": 9, "sep": 9, "sept": 9,
-		"october": 10, "oct": 10, "november": 11, "nov": 11,
+		"january": 1, "jan": 1,
+		"february": 2, "feb": 2,
+		"march": 3, "mar": 3,
+		"april": 4, "apr": 4,
+		"may":  5,
+		"june": 6, "jun": 6,
+		"july": 7, "jul": 7,
+		"august": 8, "aug": 8,
+		"september": 9, "sep": 9, "sept": 9,
+		"october": 10, "oct": 10,
+		"november": 11, "nov": 11,
 		"december": 12, "dec": 12,
 	}
 
