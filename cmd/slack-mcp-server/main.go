@@ -116,10 +116,6 @@ func newUsersWatcher(p *provider.ApiProvider, once *sync.Once, logger *zap.Logge
 			)
 		}
 
-		logger.Info("Users cached successfully",
-			zap.String("context", "console"),
-		)
-
 		ready, _ := p.IsReady()
 		if ready {
 			once.Do(func() {
@@ -151,10 +147,6 @@ func newChannelsWatcher(p *provider.ApiProvider, once *sync.Once, logger *zap.Lo
 				zap.Error(err),
 			)
 		}
-
-		logger.Info("Channels cached successfully.",
-			zap.String("context", "console"),
-		)
 
 		ready, _ := p.IsReady()
 		if ready {
