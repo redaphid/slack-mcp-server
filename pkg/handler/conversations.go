@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"regexp"
@@ -20,10 +19,24 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/slack-go/slack"
 	slackGoUtil "github.com/takara2314/slack-go-util"
+	"go.uber.org/zap"
 )
 
-const defaultConversationsNumericLimit = 50
-const defaultConversationsExpressionLimit = "1d"
+const (
+	defaultConversationsNumericLimit    = 50
+	defaultConversationsExpressionLimit = "1d"
+)
+
+var validFilterKeys = map[string]struct{}{
+	"is":     {},
+	"in":     {},
+	"from":   {},
+	"with":   {},
+	"before": {},
+	"after":  {},
+	"on":     {},
+	"during": {},
+}
 
 type Message struct {
 	UserID   string `json:"userID"`
@@ -51,21 +64,10 @@ type conversationParams struct {
 	activity bool
 }
 
-var validFilterKeys = map[string]struct{}{
-	"is":     {},
-	"in":     {},
-	"from":   {},
-	"with":   {},
-	"before": {},
-	"after":  {},
-	"on":     {},
-	"during": {},
-}
-
 type searchParams struct {
-	query string // query:search query
-	limit int    // limit:100
-	page  int    // page:1
+	query string
+	limit int
+	page  int
 }
 
 type addMessageParams struct {
@@ -77,37 +79,51 @@ type addMessageParams struct {
 
 type ConversationsHandler struct {
 	apiProvider *provider.ApiProvider
+	logger      *zap.Logger
 }
 
-func NewConversationsHandler(apiProvider *provider.ApiProvider) *ConversationsHandler {
+func NewConversationsHandler(apiProvider *provider.ApiProvider, logger *zap.Logger) *ConversationsHandler {
 	return &ConversationsHandler{
 		apiProvider: apiProvider,
+		logger:      logger,
 	}
 }
 
+// UsersResource streams a CSV of all users
 func (ch *ConversationsHandler) UsersResource(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-	// mark3labs/mcp-go does not support middlewares for resources.
-	if authenticated, err := auth.IsAuthenticated(ctx, ch.apiProvider.ServerTransport()); !authenticated {
+	ch.logger.Debug("UsersResource called", zap.Any("params", request.Params))
+
+	// authentication
+	if authenticated, err := auth.IsAuthenticated(ctx, ch.apiProvider.ServerTransport(), ch.logger); !authenticated {
+		ch.logger.Error("Authentication failed for users resource", zap.Error(err))
 		return nil, err
 	}
 
+	// provider readiness
 	if ready, err := ch.apiProvider.IsReady(); !ready {
+		ch.logger.Error("API provider not ready", zap.Error(err))
 		return nil, err
 	}
 
-	_, ar, err := ch.apiProvider.ProvideGeneric()
+	// Slack auth test
+	ar, err := ch.apiProvider.Slack().AuthTest()
 	if err != nil {
+		ch.logger.Error("Slack AuthTest failed", zap.Error(err))
 		return nil, err
 	}
 
 	ws, err := text.Workspace(ar.URL)
 	if err != nil {
+		ch.logger.Error("Failed to parse workspace from URL",
+			zap.String("url", ar.URL),
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf("failed to parse workspace from URL: %v", err)
 	}
 
+	// collect users
 	usersMaps := ch.apiProvider.ProvideUsersMap()
 	users := usersMaps.Users
-
 	usersList := make([]User, 0, len(users))
 	for _, user := range users {
 		usersList = append(usersList, User{
@@ -117,8 +133,10 @@ func (ch *ConversationsHandler) UsersResource(ctx context.Context, request mcp.R
 		})
 	}
 
+	// marshal CSV
 	csvBytes, err := gocsv.MarshalBytes(&usersList)
 	if err != nil {
+		ch.logger.Error("Failed to marshal users to CSV", zap.Error(err))
 		return nil, err
 	}
 
@@ -131,47 +149,50 @@ func (ch *ConversationsHandler) UsersResource(ctx context.Context, request mcp.R
 	}, nil
 }
 
+// ConversationsAddMessageHandler posts a message and returns it as CSV
 func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	ch.logger.Debug("ConversationsAddMessageHandler called", zap.Any("params", request.Params))
+
 	params, err := ch.parseParamsToolAddMessage(request)
 	if err != nil {
-		return nil, err
-	}
-
-	api, _, err := ch.apiProvider.ProvideGeneric()
-	if err != nil {
+		ch.logger.Error("Failed to parse add-message params", zap.Error(err))
 		return nil, err
 	}
 
 	var options []slack.MsgOption
-
 	if params.threadTs != "" {
 		options = append(options, slack.MsgOptionTS(params.threadTs))
 	}
 
-	if params.contentType == "text/plain" {
+	switch params.contentType {
+	case "text/plain":
 		options = append(options, slack.MsgOptionDisableMarkdown())
 		options = append(options, slack.MsgOptionText(params.text, false))
-	} else if params.contentType == "text/markdown" {
+	case "text/markdown":
 		blocks, err := slackGoUtil.ConvertMarkdownTextToBlocks(params.text)
-		if err == nil {
-			options = append(options, slack.MsgOptionBlocks(blocks...))
-		} else {
-			// fallback to plain text if conversion fails
-			log.Printf("Markdown parsing error: %s\n", err.Error())
-
+		if err != nil {
+			ch.logger.Warn("Markdown parsing error", zap.Error(err))
 			options = append(options, slack.MsgOptionDisableMarkdown())
 			options = append(options, slack.MsgOptionText(params.text, false))
+		} else {
+			options = append(options, slack.MsgOptionBlocks(blocks...))
 		}
-	} else {
+	default:
 		return nil, errors.New("content_type must be either 'text/plain' or 'text/markdown'")
 	}
 
-	respChannel, respTimestamp, err := api.PostMessageContext(ctx, params.channel, options...)
-
+	ch.logger.Debug("Posting Slack message",
+		zap.String("channel", params.channel),
+		zap.String("thread_ts", params.threadTs),
+		zap.String("content_type", params.contentType),
+	)
+	respChannel, respTimestamp, err := ch.apiProvider.Slack().PostMessageContext(ctx, params.channel, options...)
 	if err != nil {
+		ch.logger.Error("Slack PostMessageContext failed", zap.Error(err))
 		return nil, err
 	}
 
+	// fetch the single message we just posted
 	historyParams := slack.GetConversationHistoryParameters{
 		ChannelID: respChannel,
 		Limit:     1,
@@ -179,27 +200,33 @@ func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Conte
 		Latest:    respTimestamp,
 		Inclusive: true,
 	}
-
-	history, err := api.GetConversationHistoryContext(ctx, &historyParams)
+	history, err := ch.apiProvider.Slack().GetConversationHistoryContext(ctx, &historyParams)
 	if err != nil {
+		ch.logger.Error("GetConversationHistoryContext failed", zap.Error(err))
 		return nil, err
 	}
+	ch.logger.Debug("Fetched conversation history", zap.Int("message_count", len(history.Messages)))
 
 	messages := ch.convertMessagesFromHistory(history.Messages, historyParams.ChannelID, false)
-
 	return marshalMessagesToCSV(messages)
 }
 
+// ConversationsHistoryHandler streams conversation history as CSV
 func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	ch.logger.Debug("ConversationsHistoryHandler called", zap.Any("params", request.Params))
+
 	params, err := ch.parseParamsToolConversations(request)
 	if err != nil {
+		ch.logger.Error("Failed to parse history params", zap.Error(err))
 		return nil, err
 	}
-
-	api, _, err := ch.apiProvider.ProvideGeneric()
-	if err != nil {
-		return nil, err
-	}
+	ch.logger.Debug("History params parsed",
+		zap.String("channel", params.channel),
+		zap.Int("limit", params.limit),
+		zap.String("oldest", params.oldest),
+		zap.String("latest", params.latest),
+		zap.Bool("include_activity", params.activity),
+	)
 
 	historyParams := slack.GetConversationHistoryParameters{
 		ChannelID: params.channel,
@@ -209,35 +236,35 @@ func (ch *ConversationsHandler) ConversationsHistoryHandler(ctx context.Context,
 		Cursor:    params.cursor,
 		Inclusive: false,
 	}
-
-	history, err := api.GetConversationHistoryContext(ctx, &historyParams)
+	history, err := ch.apiProvider.Slack().GetConversationHistoryContext(ctx, &historyParams)
 	if err != nil {
+		ch.logger.Error("GetConversationHistoryContext failed", zap.Error(err))
 		return nil, err
 	}
+
+	ch.logger.Debug("Fetched conversation history", zap.Int("message_count", len(history.Messages)))
 
 	messages := ch.convertMessagesFromHistory(history.Messages, params.channel, params.activity)
 
 	if len(messages) > 0 && history.HasMore {
 		messages[len(messages)-1].Cursor = history.ResponseMetaData.NextCursor
 	}
-
 	return marshalMessagesToCSV(messages)
 }
 
+// ConversationsRepliesHandler streams thread replies as CSV
 func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	ch.logger.Debug("ConversationsRepliesHandler called", zap.Any("params", request.Params))
+
 	params, err := ch.parseParamsToolConversations(request)
 	if err != nil {
+		ch.logger.Error("Failed to parse replies params", zap.Error(err))
 		return nil, err
 	}
-
 	threadTs := request.GetString("thread_ts", "")
 	if threadTs == "" {
+		ch.logger.Error("thread_ts not provided for replies", zap.String("thread_ts", threadTs))
 		return nil, errors.New("thread_ts must be a string")
-	}
-
-	api, _, err := ch.apiProvider.ProvideGeneric()
-	if err != nil {
-		return nil, err
 	}
 
 	repliesParams := slack.GetConversationRepliesParameters{
@@ -249,31 +276,29 @@ func (ch *ConversationsHandler) ConversationsRepliesHandler(ctx context.Context,
 		Cursor:    params.cursor,
 		Inclusive: false,
 	}
-
-	replies, hasMore, nextCursor, err := api.GetConversationRepliesContext(ctx, &repliesParams)
+	replies, hasMore, nextCursor, err := ch.apiProvider.Slack().GetConversationRepliesContext(ctx, &repliesParams)
 	if err != nil {
+		ch.logger.Error("GetConversationRepliesContext failed", zap.Error(err))
 		return nil, err
 	}
+	ch.logger.Debug("Fetched conversation replies", zap.Int("count", len(replies)))
 
 	messages := ch.convertMessagesFromHistory(replies, params.channel, params.activity)
-
 	if len(messages) > 0 && hasMore {
 		messages[len(messages)-1].Cursor = nextCursor
 	}
-
 	return marshalMessagesToCSV(messages)
 }
 
 func (ch *ConversationsHandler) ConversationsSearchHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	ch.logger.Debug("ConversationsSearchHandler called", zap.Any("params", request.Params))
+
 	params, err := ch.parseParamsToolSearch(request)
 	if err != nil {
+		ch.logger.Error("Failed to parse search params", zap.Error(err))
 		return nil, err
 	}
-
-	api, _, err := ch.apiProvider.ProvideGeneric()
-	if err != nil {
-		return nil, err
-	}
+	ch.logger.Debug("Search params parsed", zap.String("query", params.query), zap.Int("limit", params.limit), zap.Int("page", params.page))
 
 	searchParams := slack.SearchParameters{
 		Sort:          slack.DEFAULT_SEARCH_SORT,
@@ -282,20 +307,18 @@ func (ch *ConversationsHandler) ConversationsSearchHandler(ctx context.Context, 
 		Count:         params.limit,
 		Page:          params.page,
 	}
-
-	messagesRes, _, err := api.SearchContext(ctx, params.query, searchParams)
+	messagesRes, _, err := ch.apiProvider.Slack().SearchContext(ctx, params.query, searchParams)
 	if err != nil {
+		ch.logger.Error("Slack SearchContext failed", zap.Error(err))
 		return nil, err
 	}
+	ch.logger.Debug("Search completed", zap.Int("matches", len(messagesRes.Matches)))
 
 	messages := ch.convertMessagesFromSearch(messagesRes.Matches)
-
 	if len(messages) > 0 && ((messagesRes.Pagination.PerPage * messagesRes.Pagination.PageCount) < messagesRes.Pagination.TotalCount) {
 		nextCursor := fmt.Sprintf("page:%d", messagesRes.Pagination.PageCount+1)
-
 		messages[len(messages)-1].Cursor = base64.StdEncoding.EncodeToString([]byte(nextCursor))
 	}
-
 	return marshalMessagesToCSV(messages)
 }
 
@@ -304,10 +327,8 @@ func isChannelAllowed(channel string) bool {
 	if config == "" || config == "true" || config == "1" {
 		return true
 	}
-
 	items := strings.Split(config, ",")
 	isNegated := strings.HasPrefix(strings.TrimSpace(items[0]), "!")
-
 	for _, item := range items {
 		item = strings.TrimSpace(item)
 		if isNegated {
@@ -320,7 +341,6 @@ func isChannelAllowed(channel string) bool {
 			}
 		}
 	}
-
 	return !isNegated
 }
 
@@ -333,12 +353,10 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 		if msg.SubType != "" && !includeActivity {
 			continue
 		}
-
 		userName, realName, ok := getUserInfo(msg.User, usersMap.Users)
 		if !ok {
 			warn = true
 		}
-
 		messages = append(messages, Message{
 			UserID:   msg.User,
 			UserName: userName,
@@ -352,10 +370,12 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 
 	if ready, err := ch.apiProvider.IsReady(); !ready {
 		if warn && errors.Is(err, provider.ErrUsersNotReady) {
-			log.Printf("WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again.\n")
+			ch.logger.Warn(
+				"WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again",
+				zap.Error(err),
+			)
 		}
 	}
-
 	return messages
 }
 
@@ -369,9 +389,7 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 		if !ok {
 			warn = true
 		}
-
 		threadTs, _ := extractThreadTS(msg.Permalink)
-
 		messages = append(messages, Message{
 			UserID:   msg.User,
 			UserName: userName,
@@ -385,16 +403,19 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 
 	if ready, err := ch.apiProvider.IsReady(); !ready {
 		if warn && errors.Is(err, provider.ErrUsersNotReady) {
-			log.Printf("WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again.\n")
+			ch.logger.Warn(
+				"Slack users sync not ready; you may see raw UIDs instead of names and lose some functionality.",
+				zap.Error(err),
+			)
 		}
 	}
-
 	return messages
 }
 
 func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToolRequest) (*conversationParams, error) {
 	channel := request.GetString("channel_id", "")
 	if channel == "" {
+		ch.logger.Error("channel_id missing in conversations params")
 		return nil, errors.New("channel_id must be a string")
 	}
 
@@ -408,15 +429,16 @@ func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToo
 		paramLatest string
 		err         error
 	)
-
 	if strings.HasSuffix(limit, "d") || strings.HasSuffix(limit, "w") || strings.HasSuffix(limit, "m") {
 		paramLimit, paramOldest, paramLatest, err = limitByExpression(limit, defaultConversationsExpressionLimit)
 		if err != nil {
+			ch.logger.Error("Invalid duration limit", zap.String("limit", limit), zap.Error(err))
 			return nil, err
 		}
 	} else if cursor == "" {
 		paramLimit, err = limitByNumeric(limit, defaultConversationsNumericLimit)
 		if err != nil {
+			ch.logger.Error("Invalid numeric limit", zap.String("limit", limit), zap.Error(err))
 			return nil, err
 		}
 	}
@@ -424,22 +446,26 @@ func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToo
 	if strings.HasPrefix(channel, "#") || strings.HasPrefix(channel, "@") {
 		if ready, err := ch.apiProvider.IsReady(); !ready {
 			if errors.Is(err, provider.ErrUsersNotReady) {
-				log.Printf("WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again.\n")
+				ch.logger.Warn(
+					"WARNING: Slack users sync is not ready yet, you may experience some limited functionality and see UIDs instead of resolved names as well as unable to query users by their @handles. Users sync is part of channels sync and operations on channels depend on users collection (IM, MPIM). Please wait until users are synced and try again",
+					zap.Error(err),
+				)
 			}
 			if errors.Is(err, provider.ErrChannelsNotReady) {
-				log.Printf("WARNING: Slack channels sync is not ready yet, you may experience some limited functionality and be able to request conversation only by Channel ID, not by its name. Please wait until channels are synced and try again.\n")
+				ch.logger.Warn(
+					"WARNING: Slack channels sync is not ready yet, you may experience some limited functionality and be able to request conversation only by Channel ID, not by its name. Please wait until channels are synced and try again.",
+					zap.Error(err),
+				)
 			}
-
 			return nil, fmt.Errorf("channel %q not found in empty cache", channel)
-		} else {
-			channelsMaps := ch.apiProvider.ProvideChannelsMaps()
-			chn, ok := channelsMaps.ChannelsInv[channel]
-			if !ok {
-				return nil, fmt.Errorf("channel %q not found in synced cache. Try to remove old cache file and restart MCP Server", channel)
-			}
-
-			channel = channelsMaps.Channels[chn].ID
 		}
+		channelsMaps := ch.apiProvider.ProvideChannelsMaps()
+		chn, ok := channelsMaps.ChannelsInv[channel]
+		if !ok {
+			ch.logger.Error("Channel not found in synced cache", zap.String("channel", channel))
+			return nil, fmt.Errorf("channel %q not found in synced cache. Try to remove old cache file and restart MCP Server", channel)
+		}
+		channel = channelsMaps.Channels[chn].ID
 	}
 
 	return &conversationParams{
@@ -455,40 +481,49 @@ func (ch *ConversationsHandler) parseParamsToolConversations(request mcp.CallToo
 func (ch *ConversationsHandler) parseParamsToolAddMessage(request mcp.CallToolRequest) (*addMessageParams, error) {
 	toolConfig := os.Getenv("SLACK_MCP_ADD_MESSAGE_TOOL")
 	if toolConfig == "" {
-		return nil, errors.New("by default, the conversations_add_message tool is disabled to guard Slack workspaces against accidental spamming. To enable it, set the SLACK_MCP_ADD_MESSAGE_TOOL environment variable to true, 1, or comma separated list of channels to limit where the MCP can post messages, e.g. 'SLACK_MCP_ADD_MESSAGE_TOOL=C1234567890,D0987654321', 'SLACK_MCP_ADD_MESSAGE_TOOL=!C1234567890' to enable all except one or 'SLACK_MCP_ADD_MESSAGE_TOOL=true' for all channels and DMs")
+		ch.logger.Error("Add-message tool disabled by default")
+		return nil, errors.New(
+			"by default, the conversations_add_message tool is disabled to guard Slack workspaces against accidental spamming." +
+				"To enable it, set the SLACK_MCP_ADD_MESSAGE_TOOL environment variable to true, 1, or comma separated list of channels" +
+				"to limit where the MCP can post messages, e.g. 'SLACK_MCP_ADD_MESSAGE_TOOL=C1234567890,D0987654321', 'SLACK_MCP_ADD_MESSAGE_TOOL=!C1234567890'" +
+				"to enable all except one or 'SLACK_MCP_ADD_MESSAGE_TOOL=true' for all channels and DMs",
+		)
 	}
 
 	channel := request.GetString("channel_id", "")
 	if channel == "" {
+		ch.logger.Error("channel_id missing in add-message params")
 		return nil, errors.New("channel_id must be a string")
 	}
-
 	if strings.HasPrefix(channel, "#") || strings.HasPrefix(channel, "@") {
 		channelsMaps := ch.apiProvider.ProvideChannelsMaps()
 		chn, ok := channelsMaps.ChannelsInv[channel]
 		if !ok {
+			ch.logger.Error("Channel not found", zap.String("channel", channel))
 			return nil, fmt.Errorf("channel %q not found", channel)
 		}
-
 		channel = channelsMaps.Channels[chn].ID
 	}
-
 	if !isChannelAllowed(channel) {
+		ch.logger.Warn("Add-message tool not allowed for channel", zap.String("channel", channel), zap.String("policy", toolConfig))
 		return nil, fmt.Errorf("conversations_add_message tool is not allowed for channel %q, applied policy: %s", channel, toolConfig)
 	}
 
 	threadTs := request.GetString("thread_ts", "")
 	if threadTs != "" && !strings.Contains(threadTs, ".") {
+		ch.logger.Error("Invalid thread_ts format", zap.String("thread_ts", threadTs))
 		return nil, errors.New("thread_ts must be a valid timestamp in format 1234567890.123456")
 	}
 
 	msgText := request.GetString("payload", "")
 	if msgText == "" {
+		ch.logger.Error("Message text missing")
 		return nil, errors.New("text must be a string")
 	}
 
 	contentType := request.GetString("content_type", "text/markdown")
 	if contentType != "text/plain" && contentType != "text/markdown" {
+		ch.logger.Error("Invalid content_type", zap.String("content_type", contentType))
 		return nil, errors.New("content_type must be either 'text/plain' or 'text/markdown'")
 	}
 
@@ -502,48 +537,43 @@ func (ch *ConversationsHandler) parseParamsToolAddMessage(request mcp.CallToolRe
 
 func (ch *ConversationsHandler) parseParamsToolSearch(req mcp.CallToolRequest) (*searchParams, error) {
 	rawQuery := strings.TrimSpace(req.GetString("search_query", ""))
-
 	freeText, filters := splitQuery(rawQuery)
 
-	// is:thread
 	if req.GetBool("filter_threads_only", false) {
 		addFilter(filters, "is", "thread")
 	}
-
-	// in:channel or in:IM
 	if chName := req.GetString("filter_in_channel", ""); chName != "" {
 		f, err := ch.paramFormatChannel(chName)
 		if err != nil {
+			ch.logger.Error("Invalid channel filter", zap.String("filter", chName), zap.Error(err))
 			return nil, err
 		}
 		addFilter(filters, "in", f)
 	} else if im := req.GetString("filter_in_im_or_mpim", ""); im != "" {
 		f, err := ch.paramFormatUser(im)
 		if err != nil {
+			ch.logger.Error("Invalid IM/MPIM filter", zap.String("filter", im), zap.Error(err))
 			return nil, err
 		}
 		addFilter(filters, "in", f)
 	}
-
-	// with:
 	if with := req.GetString("filter_users_with", ""); with != "" {
 		f, err := ch.paramFormatUser(with)
 		if err != nil {
+			ch.logger.Error("Invalid with-user filter", zap.String("filter", with), zap.Error(err))
 			return nil, err
 		}
 		addFilter(filters, "with", f)
 	}
-
-	// from:
 	if from := req.GetString("filter_users_from", ""); from != "" {
 		f, err := ch.paramFormatUser(from)
 		if err != nil {
+			ch.logger.Error("Invalid from-user filter", zap.String("filter", from), zap.Error(err))
 			return nil, err
 		}
 		addFilter(filters, "from", f)
 	}
 
-	// date filters
 	dateMap, err := buildDateFilters(
 		req.GetString("filter_date_before", ""),
 		req.GetString("filter_date_after", ""),
@@ -551,6 +581,7 @@ func (ch *ConversationsHandler) parseParamsToolSearch(req mcp.CallToolRequest) (
 		req.GetString("filter_date_during", ""),
 	)
 	if err != nil {
+		ch.logger.Error("Invalid date filters", zap.Error(err))
 		return nil, err
 	}
 	for key, val := range dateMap {
@@ -558,7 +589,6 @@ func (ch *ConversationsHandler) parseParamsToolSearch(req mcp.CallToolRequest) (
 	}
 
 	finalQuery := buildQuery(freeText, filters)
-
 	limit := req.GetInt("limit", 100)
 	cursor := req.GetString("cursor", "")
 
@@ -569,20 +599,28 @@ func (ch *ConversationsHandler) parseParamsToolSearch(req mcp.CallToolRequest) (
 	if cursor != "" {
 		decodedCursor, err = base64.StdEncoding.DecodeString(cursor)
 		if err != nil {
+			ch.logger.Error("Invalid cursor decoding", zap.String("cursor", cursor), zap.Error(err))
 			return nil, fmt.Errorf("invalid cursor: %v", err)
 		}
-		partOfCursor := strings.Split(string(decodedCursor), ":")
-		if len(partOfCursor) != 2 {
+		parts := strings.Split(string(decodedCursor), ":")
+		if len(parts) != 2 {
+			ch.logger.Error("Invalid cursor format", zap.String("cursor", cursor))
 			return nil, fmt.Errorf("invalid cursor: %v", cursor)
 		}
-		page, err = strconv.Atoi(partOfCursor[1])
+		page, err = strconv.Atoi(parts[1])
 		if err != nil || page < 1 {
+			ch.logger.Error("Invalid cursor page", zap.String("cursor", cursor), zap.Error(err))
 			return nil, fmt.Errorf("invalid cursor page: %v", err)
 		}
 	} else {
 		page = 1
 	}
 
+	ch.logger.Debug("Search parameters built",
+		zap.String("query", finalQuery),
+		zap.Int("limit", limit),
+		zap.Int("page", page),
+	)
 	return &searchParams{
 		query: finalQuery,
 		limit: limit,
@@ -592,36 +630,33 @@ func (ch *ConversationsHandler) parseParamsToolSearch(req mcp.CallToolRequest) (
 
 func (ch *ConversationsHandler) paramFormatUser(raw string) (string, error) {
 	users := ch.apiProvider.ProvideUsersMap()
-
 	raw = strings.TrimSpace(raw)
 	if strings.HasPrefix(raw, "U") {
 		u, ok := users.Users[raw]
 		if !ok {
 			return "", fmt.Errorf("user %q not found", raw)
 		}
-
 		return fmt.Sprintf("<@%s>", u.ID), nil
-	} else {
-		if strings.HasPrefix(raw, "<@") {
-			return raw, nil
-		}
-		if strings.HasPrefix(raw, "@") {
-			raw = raw[1:]
-		}
-		u, ok := users.UsersInv[raw]
-		if !ok {
-			return "", fmt.Errorf("user %q not found", raw)
-		}
-		return fmt.Sprintf("@%s", users.Users[u].Name), nil
 	}
+	if strings.HasPrefix(raw, "<@") {
+		raw = raw[2:]
+	}
+	if strings.HasPrefix(raw, "@") {
+		raw = raw[1:]
+	}
+	uid, ok := users.UsersInv[raw]
+	if !ok {
+		return "", fmt.Errorf("user %q not found", raw)
+	}
+	return fmt.Sprintf("<@%s>", uid), nil
 }
 
 func (ch *ConversationsHandler) paramFormatChannel(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	cms := ch.apiProvider.ProvideChannelsMaps()
 	if strings.HasPrefix(raw, "#") {
-		if chID, ok := cms.ChannelsInv[raw]; ok {
-			return "#" + cms.Channels[chID].Name, nil
+		if id, ok := cms.ChannelsInv[raw]; ok {
+			return "#" + cms.Channels[id].Name, nil
 		}
 		return "", fmt.Errorf("channel %q not found", raw)
 	}
@@ -642,9 +677,9 @@ func marshalMessagesToCSV(messages []Message) (*mcp.CallToolResult, error) {
 	return mcp.NewToolResultText(string(csvBytes)), nil
 }
 
-func getUserInfo(userID string, usersMap map[string]slack.User) (userName string, realName string, ok bool) {
-	if user, ok := usersMap[userID]; ok {
-		return user.Name, user.RealName, true
+func getUserInfo(userID string, usersMap map[string]slack.User) (userName, realName string, ok bool) {
+	if u, ok := usersMap[userID]; ok {
+		return u.Name, u.RealName, true
 	}
 	return userID, userID, false
 }
@@ -653,7 +688,6 @@ func limitByNumeric(limit string, defaultLimit int) (int, error) {
 	if limit == "" {
 		return defaultLimit, nil
 	}
-
 	n, err := strconv.Atoi(limit)
 	if err != nil {
 		return 0, fmt.Errorf("invalid numeric limit: %q", limit)
@@ -661,40 +695,22 @@ func limitByNumeric(limit string, defaultLimit int) (int, error) {
 	return n, nil
 }
 
-// limitByExpression parses a string like "1d", "2w", "3m", etc.
-// It returns:
-//   - the per page limit (always 100)
-//   - oldest timestamp = midnight of (today − duration + 1 day) for days/weeks,
-//     or midnight of (today − X months) for months,
-//   - latest timestamp = now,
-//   - or an error if parsing fails.
-func limitByExpression(limit string, defaultLimit string) (slackLimit int, oldest, latest string, err error) {
+func limitByExpression(limit, defaultLimit string) (slackLimit int, oldest, latest string, err error) {
 	if limit == "" {
 		limit = defaultLimit
 	}
-
 	if len(limit) < 2 {
 		return 0, "", "", fmt.Errorf("invalid duration limit %q: too short", limit)
 	}
-
-	// suffix is the last character: d, w, or m
 	suffix := limit[len(limit)-1]
 	numStr := limit[:len(limit)-1]
 	n, err := strconv.Atoi(numStr)
 	if err != nil || n <= 0 {
-		return 0, "", "", fmt.Errorf(
-			"invalid duration limit %q: must be a positive integer followed by 'd', 'w', or 'm'",
-			limit,
-		)
+		return 0, "", "", fmt.Errorf("invalid duration limit %q: must be a positive integer followed by 'd', 'w', or 'm'", limit)
 	}
-
 	now := time.Now()
 	loc := now.Location()
-	startOfToday := time.Date(
-		now.Year(), now.Month(), now.Day(),
-		0, 0, 0, 0,
-		loc,
-	)
+	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 
 	var oldestTime time.Time
 	switch suffix {
@@ -705,15 +721,10 @@ func limitByExpression(limit string, defaultLimit string) (slackLimit int, oldes
 	case 'm':
 		oldestTime = startOfToday.AddDate(0, -n, 0)
 	default:
-		return 0, "", "", fmt.Errorf(
-			"invalid duration limit %q: must end in 'd', 'w', or 'm'",
-			limit,
-		)
+		return 0, "", "", fmt.Errorf("invalid duration limit %q: must end in 'd', 'w', or 'm'", limit)
 	}
-
 	latest = fmt.Sprintf("%d.000000", now.Unix())
 	oldest = fmt.Sprintf("%d.000000", oldestTime.Unix())
-
 	return 100, oldest, latest, nil
 }
 
@@ -725,12 +736,8 @@ func extractThreadTS(rawurl string) (string, error) {
 	return u.Query().Get("thread_ts"), nil
 }
 
-// parseFlexibleDate parses various date formats and returns the parsed time,
-// the normalized YYYY-MM-DD format, and any error
 func parseFlexibleDate(dateStr string) (time.Time, string, error) {
 	dateStr = strings.TrimSpace(dateStr)
-
-	// Try standard formats first (existing logic)
 	standardFormats := []string{
 		"2006-01-02",      // YYYY-MM-DD
 		"2006/01/02",      // YYYY/MM/DD
@@ -743,14 +750,12 @@ func parseFlexibleDate(dateStr string) (time.Time, string, error) {
 		"2 Jan 2006",      // 2 Jan 2006
 		"2 January 2006",  // 2 January 2006
 	}
-
-	for _, format := range standardFormats {
-		if t, err := time.Parse(format, dateStr); err == nil {
+	for _, fmtStr := range standardFormats {
+		if t, err := time.Parse(fmtStr, dateStr); err == nil {
 			return t, t.Format("2006-01-02"), nil
 		}
 	}
 
-	// Month name mappings
 	monthMap := map[string]int{
 		"january": 1, "jan": 1,
 		"february": 2, "feb": 2,
@@ -766,79 +771,65 @@ func parseFlexibleDate(dateStr string) (time.Time, string, error) {
 		"december": 12, "dec": 12,
 	}
 
-	// Try flexible month-year formats
-	// Pattern: "Month Year" or "Year Month"
-	monthYearPattern := regexp.MustCompile(`^(\d{4})\s+([a-zA-Z]+)$|^([a-zA-Z]+)\s+(\d{4})$`)
-	if matches := monthYearPattern.FindStringSubmatch(dateStr); matches != nil {
+	// Month-Year patterns
+	monthYear := regexp.MustCompile(`^(\d{4})\s+([A-Za-z]+)$|^([A-Za-z]+)\s+(\d{4})$`)
+	if m := monthYear.FindStringSubmatch(dateStr); m != nil {
 		var year int
-		var monthStr string
-
-		if matches[1] != "" && matches[2] != "" {
-			// Format: "2025 July"
-			year, _ = strconv.Atoi(matches[1])
-			monthStr = strings.ToLower(matches[2])
-		} else if matches[3] != "" && matches[4] != "" {
-			// Format: "July 2025"
-			monthStr = strings.ToLower(matches[3])
-			year, _ = strconv.Atoi(matches[4])
+		var monStr string
+		if m[1] != "" && m[2] != "" {
+			year, _ = strconv.Atoi(m[1])
+			monStr = strings.ToLower(m[2])
+		} else {
+			year, _ = strconv.Atoi(m[4])
+			monStr = strings.ToLower(m[3])
 		}
-
-		if month, ok := monthMap[monthStr]; ok && year > 0 {
-			t := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+		if mon, ok := monthMap[monStr]; ok {
+			t := time.Date(year, time.Month(mon), 1, 0, 0, 0, 0, time.UTC)
 			return t, t.Format("2006-01-02"), nil
 		}
 	}
 
-	// Try patterns with day: "1-July-2025", "July-25-2025", "July 10 2025", "10 July 2025"
-	// Pattern: "DD-Month-YYYY" or "Month-DD-YYYY"
-	dayMonthYearPattern1 := regexp.MustCompile(`^(\d{1,2})[-\s]+([a-zA-Z]+)[-\s]+(\d{4})$`)
-	if matches := dayMonthYearPattern1.FindStringSubmatch(dateStr); matches != nil {
-		day, _ := strconv.Atoi(matches[1])
-		monthStr := strings.ToLower(matches[2])
-		year, _ := strconv.Atoi(matches[3])
-
-		if month, ok := monthMap[monthStr]; ok && year > 0 && day > 0 && day <= 31 {
-			t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	// Day-Month-Year and Month-Day-Year patterns
+	dmy1 := regexp.MustCompile(`^(\d{1,2})[-\s]+([A-Za-z]+)[-\s]+(\d{4})$`)
+	if m := dmy1.FindStringSubmatch(dateStr); m != nil {
+		day, _ := strconv.Atoi(m[1])
+		year, _ := strconv.Atoi(m[3])
+		monStr := strings.ToLower(m[2])
+		if mon, ok := monthMap[monStr]; ok {
+			t := time.Date(year, time.Month(mon), day, 0, 0, 0, 0, time.UTC)
+			if t.Day() == day {
+				return t, t.Format("2006-01-02"), nil
+			}
+		}
+	}
+	mdy := regexp.MustCompile(`^([A-Za-z]+)[-\s]+(\d{1,2})[-\s]+(\d{4})$`)
+	if m := mdy.FindStringSubmatch(dateStr); m != nil {
+		monStr := strings.ToLower(m[1])
+		day, _ := strconv.Atoi(m[2])
+		year, _ := strconv.Atoi(m[3])
+		if mon, ok := monthMap[monStr]; ok {
+			t := time.Date(year, time.Month(mon), day, 0, 0, 0, 0, time.UTC)
+			if t.Day() == day {
+				return t, t.Format("2006-01-02"), nil
+			}
+		}
+	}
+	ymd := regexp.MustCompile(`^(\d{4})[-\s]+([A-Za-z]+)[-\s]+(\d{1,2})$`)
+	if m := ymd.FindStringSubmatch(dateStr); m != nil {
+		year, _ := strconv.Atoi(m[1])
+		monStr := strings.ToLower(m[2])
+		day, _ := strconv.Atoi(m[3])
+		if mon, ok := monthMap[monStr]; ok {
+			t := time.Date(year, time.Month(mon), day, 0, 0, 0, 0, time.UTC)
 			if t.Day() == day {
 				return t, t.Format("2006-01-02"), nil
 			}
 		}
 	}
 
-	// Pattern: "Month-DD-YYYY" or "Month DD YYYY"
-	monthDayYearPattern := regexp.MustCompile(`^([a-zA-Z]+)[-\s]+(\d{1,2})[-\s]+(\d{4})$`)
-	if matches := monthDayYearPattern.FindStringSubmatch(dateStr); matches != nil {
-		monthStr := strings.ToLower(matches[1])
-		day, _ := strconv.Atoi(matches[2])
-		year, _ := strconv.Atoi(matches[3])
-
-		if month, ok := monthMap[monthStr]; ok && year > 0 && day > 0 && day <= 31 {
-			t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-			if t.Day() == day {
-				return t, t.Format("2006-01-02"), nil
-			}
-		}
-	}
-
-	// Pattern: "YYYY Month DD" (e.g., "2025 July 10")
-	yearMonthDayPattern := regexp.MustCompile(`^(\d{4})[-\s]+([a-zA-Z]+)[-\s]+(\d{1,2})$`)
-	if matches := yearMonthDayPattern.FindStringSubmatch(dateStr); matches != nil {
-		year, _ := strconv.Atoi(matches[1])
-		monthStr := strings.ToLower(matches[2])
-		day, _ := strconv.Atoi(matches[3])
-
-		if month, ok := monthMap[monthStr]; ok && year > 0 && day > 0 && day <= 31 {
-			t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-			if t.Day() == day {
-				return t, t.Format("2006-01-02"), nil
-			}
-		}
-	}
-
-	lowerDateStr := strings.ToLower(dateStr)
+	lower := strings.ToLower(dateStr)
 	now := time.Now().UTC()
-
-	switch lowerDateStr {
+	switch lower {
 	case "today":
 		t := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 		return t, t.Format("2006-01-02"), nil
@@ -852,10 +843,9 @@ func parseFlexibleDate(dateStr string) (time.Time, string, error) {
 		return t, t.Format("2006-01-02"), nil
 	}
 
-	// Try "X days ago" pattern
-	daysAgoPattern := regexp.MustCompile(`^(\d+)\s+days?\s+ago$`)
-	if matches := daysAgoPattern.FindStringSubmatch(lowerDateStr); matches != nil {
-		days, _ := strconv.Atoi(matches[1])
+	daysAgo := regexp.MustCompile(`^(\d+)\s+days?\s+ago$`)
+	if m := daysAgo.FindStringSubmatch(lower); m != nil {
+		days, _ := strconv.Atoi(m[1])
 		t := now.AddDate(0, 0, -days)
 		t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 		return t, t.Format("2006-01-02"), nil
@@ -864,10 +854,8 @@ func parseFlexibleDate(dateStr string) (time.Time, string, error) {
 	return time.Time{}, "", fmt.Errorf("unable to parse date: %s", dateStr)
 }
 
-// buildDateFilters remains the same as it already uses parseFlexibleDate
 func buildDateFilters(before, after, on, during string) (map[string]string, error) {
 	out := make(map[string]string)
-
 	if on != "" {
 		if during != "" || before != "" || after != "" {
 			return nil, fmt.Errorf("'on' cannot be combined with other date filters")
@@ -943,7 +931,7 @@ func addFilter(filters map[string][]string, key, val string) {
 }
 
 func buildQuery(freeText []string, filters map[string][]string) string {
-	out := make([]string, 0, len(freeText)+len(filters)*2)
+	var out []string
 	out = append(out, freeText...)
 	for _, key := range []string{"is", "in", "from", "with", "before", "after", "on", "during"} {
 		for _, val := range filters[key] {
