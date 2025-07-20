@@ -105,15 +105,9 @@ func BuildMiddleware(transport string, logger *zap.Logger) server.ToolHandlerMid
 func IsAuthenticated(ctx context.Context, transport string, logger *zap.Logger) (bool, error) {
 	switch transport {
 	case "stdio":
-		logger.Debug("STDIO transport - no authentication required",
-			zap.String("context", "console"),
-		)
 		return true, nil
 
 	case "sse":
-		logger.Debug("SSE transport - validating token",
-			zap.String("context", "http"),
-		)
 		authenticated, err := validateToken(ctx, logger)
 
 		if err != nil {
@@ -131,9 +125,6 @@ func IsAuthenticated(ctx context.Context, transport string, logger *zap.Logger) 
 			return false, fmt.Errorf("unauthorized request")
 		}
 
-		logger.Debug("SSE authentication successful",
-			zap.String("context", "http"),
-		)
 		return true, nil
 
 	default:
