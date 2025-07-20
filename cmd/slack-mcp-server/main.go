@@ -68,7 +68,8 @@ func main() {
 		}
 
 		sseServer := s.ServeSSE(":" + port)
-		logger.Info("SSE server listening on",
+		logger.Info(
+			fmt.Sprintf("SSE server listening on %s", fmt.Sprintf("%s:%s/sse", host, port)),
 			zap.String("context", "console"),
 			zap.String("host", host),
 			zap.String("port", port),
