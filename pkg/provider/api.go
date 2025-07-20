@@ -59,6 +59,7 @@ type SlackAPI interface {
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 	GetUsersInfo(users ...string) (*[]slack.User, error)
 	PostMessageContext(ctx context.Context, channel string, options ...slack.MsgOption) (string, string, error)
+	MarkConversationContext(ctx context.Context, channel, ts string) error
 
 	// Useed to get messages
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
@@ -175,6 +176,10 @@ func (c *MCPSlackClient) GetUsersContext(ctx context.Context, options ...slack.G
 
 func (c *MCPSlackClient) GetUsersInfo(users ...string) (*[]slack.User, error) {
 	return c.slackClient.GetUsersInfo(users...)
+}
+
+func (c *MCPSlackClient) MarkConversationContext(ctx context.Context, channel, ts string) error {
+	return c.slackClient.MarkConversationContext(ctx, channel, ts)
 }
 
 func (c *MCPSlackClient) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {

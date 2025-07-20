@@ -192,6 +192,15 @@ func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Conte
 		return nil, err
 	}
 
+	toolConfig := os.Getenv("SLACK_MCP_ADD_MESSAGE_MARK")
+	if toolConfig == "1" || toolConfig == "true" || toolConfig == "yes" {
+		err := ch.apiProvider.Slack().MarkConversationContext(ctx, params.channel, respTimestamp)
+		if err != nil {
+			ch.logger.Error("Slack MarkConversationContext failed", zap.Error(err))
+			return nil, err
+		}
+	}
+
 	// fetch the single message we just posted
 	historyParams := slack.GetConversationHistoryParameters{
 		ChannelID: respChannel,
