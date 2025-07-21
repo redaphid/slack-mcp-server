@@ -52,7 +52,7 @@ func (c *ChannelTypes) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func TestChannelsListIntegration(t *testing.T) {
+func TestIntegrationChannelsList(t *testing.T) {
 	sseKey := uuid.New().String()
 	require.NotEmpty(t, sseKey, "sseKey must be generated for integration tests")
 	apiKey := os.Getenv("SLACK_MCP_OPENAI_API")

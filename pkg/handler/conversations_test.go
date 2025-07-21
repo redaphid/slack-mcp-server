@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestParseFlexibleDate(t *testing.T) {
+func TestUnitParseFlexibleDate(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -227,7 +227,7 @@ func TestParseFlexibleDate(t *testing.T) {
 	}
 }
 
-func TestBuildDateFilters(t *testing.T) {
+func TestUnitBuildDateFiltersUnit(t *testing.T) {
 	tests := []struct {
 		name    string
 		before  string
@@ -333,7 +333,7 @@ func TestBuildDateFilters(t *testing.T) {
 	}
 }
 
-func TestLimitByExpression_Valid(t *testing.T) {
+func TestUnitLimitByExpression_Valid(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -383,7 +383,7 @@ func TestLimitByExpression_Valid(t *testing.T) {
 	}
 }
 
-func TestLimitByExpression_Invalid(t *testing.T) {
+func TestUnitLimitByExpression_Invalid(t *testing.T) {
 	invalid := []string{
 		"d",   // too short
 		"0d",  // zero

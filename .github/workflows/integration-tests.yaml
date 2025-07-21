@@ -1,4 +1,4 @@
-name: Unit Tests
+name: Integration Tests
 on:
   push:
     branches:
@@ -25,5 +25,9 @@ jobs:
       - name: Download dependencies
         run: make deps
 
-      - name: Run unit tests
-        run: make test
+      - name: Run integration tests
+        env:
+          SLACK_MCP_OPENAI_API: ${{ secrets.SLACK_MCP_OPENAI_API }}
+          SLACK_MCP_XOXP_TOKEN: ${{ secrets.SLACK_MCP_XOXP_TOKEN }}
+          NGROK_AUTH_TOKEN:     ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: make test-integration

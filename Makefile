@@ -98,7 +98,11 @@ deps: ## Download dependencies
 
 .PHONY: test
 test: ## Run the tests
-	$(GO) test -count=1 -v ./...
+	$(GO) test -count=1 -v -run=".*Unit.*" ./...
+
+.PHONY: test-integration
+test-integration: ## Run integration tests
+	$(GO) test -count=1 -v -run=".*Integration.*" ./...
 
 .PHONY: format
 format: ## Format the code
