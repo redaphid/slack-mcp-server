@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"syscall"
 )
 
 type MCPConnection struct {
@@ -42,6 +43,10 @@ func SetupMCP(sseKey string) (*MCPConnection, error) {
 		"go", "run", cwd+"/../../cmd/slack-mcp-server/main.go",
 		"--transport", "sse",
 	)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
 	cmd.Env = append(os.Environ(),
 		"SLACK_MCP_XOXP_TOKEN="+xoxp,
 		"SLACK_MCP_HOST="+host,
@@ -49,7 +54,7 @@ func SetupMCP(sseKey string) (*MCPConnection, error) {
 		"SLACK_MCP_ADD_MESSAGE_TOOL=true",
 		"SLACK_MCP_SSE_API_KEY="+sseKey,
 		"SLACK_MCP_USERS_CACHE=/tmp/users_cache.json",
-		"SLACK_MCP_CHANNELS_CACHE=/tmp/channels_cache.json",
+		"SLACK_MCP_CHANNELS_CACHE=/tmp/channels_cache_v3.json",
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -69,6 +74,9 @@ func SetupMCP(sseKey string) (*MCPConnection, error) {
 		Host: host,
 		Port: port,
 		Shutdown: func() {
+			if cmd.Process != nil {
+				syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+			}
 			cancel()
 			<-done
 		},
