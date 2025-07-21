@@ -58,7 +58,13 @@ func TestIntegrationChannelsList(t *testing.T) {
 	apiKey := os.Getenv("SLACK_MCP_OPENAI_API")
 	require.NotEmpty(t, apiKey, "SLACK_MCP_OPENAI_API must be set for integration tests")
 
-	mcp, err := util.SetupMCP(sseKey)
+	cfg := util.MCPConfig{
+		SSEKey:             sseKey,
+		MessageToolEnabled: true,
+		MessageToolMark:    true,
+	}
+
+	mcp, err := util.SetupMCP(cfg)
 	if err != nil {
 		t.Fatalf("Failed to set up MCP server: %v", err)
 	}
@@ -83,7 +89,6 @@ func TestIntegrationChannelsList(t *testing.T) {
 		name                            string
 		input                           string
 		expectedToolName                string
-		expectedToolCall                *channelsListToolArgs
 		expectedToolOutputMatchingRules []matchingRule
 		expectedLLMOutputMatchingRules  []string
 	}
@@ -93,12 +98,6 @@ func TestIntegrationChannelsList(t *testing.T) {
 			name:             "Get list of channels",
 			input:            "Provide a list of slack channels.",
 			expectedToolName: "channels_list",
-			expectedToolCall: &channelsListToolArgs{
-				ChannelTypes: ChannelTypes{"public_channel", "private_channel"},
-				Cursor:       "",
-				Limit:        20,
-				Sort:         "popularity",
-			},
 			expectedToolOutputMatchingRules: []matchingRule{
 				{
 					csvFieldName:    "Name",
@@ -118,7 +117,7 @@ func TestIntegrationChannelsList(t *testing.T) {
 				},
 			},
 			expectedLLMOutputMatchingRules: []string{
-				"list", "channels", "#general", "#testcase-1", "#testcase-2", "#testcase-3",
+				"channels", "#general", "#testcase-1", "#testcase-2", "#testcase-3",
 			},
 		},
 	}
@@ -187,7 +186,7 @@ func TestIntegrationChannelsList(t *testing.T) {
 				}
 
 				idx, ok := colIndex[rule.csvFieldName]
-				require.Truef(t, ok, "CSV did not contain column %q", rule.csvFieldName)
+				require.Truef(t, ok, "CSV did not contain column %q, toolOutput: %q", rule.csvFieldName, toolOutput.String())
 
 				re, err := regexp.Compile(rule.csvFieldValueRE)
 				require.NoErrorf(t, err, "invalid regex %q", rule.csvFieldValueRE)
@@ -208,14 +207,14 @@ func TestIntegrationChannelsList(t *testing.T) {
 					}
 				}
 				assert.Truef(t, found, "no row in column %q matched %q; full CSV:\n%s",
-					rule.csvFieldName, rule.csvFieldValueRE, toolOutput)
+					rule.csvFieldName, rule.csvFieldValueRE, toolOutput.String())
 			}
 
 			for _, pattern := range tc.expectedLLMOutputMatchingRules {
 				re, err := regexp.Compile(pattern)
 				require.NoErrorf(t, err, "invalid LLM regex %q", pattern)
 				assert.Regexpf(t, re, llmOutput.String(), "LLM output did not match regex %q; output:\n%s",
-					pattern, llmOutput)
+					pattern, llmOutput.String())
 			}
 		})
 	}

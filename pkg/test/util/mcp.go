@@ -11,13 +11,19 @@ import (
 	"syscall"
 )
 
+type MCPConfig struct {
+	SSEKey             string
+	MessageToolEnabled bool
+	MessageToolMark    bool
+}
+
 type MCPConnection struct {
 	Host     string
 	Port     int
 	Shutdown func()
 }
 
-func SetupMCP(sseKey string) (*MCPConnection, error) {
+func SetupMCP(cfg MCPConfig) (*MCPConnection, error) {
 	xoxp := os.Getenv("SLACK_MCP_XOXP_TOKEN")
 	if xoxp == "" {
 		return nil, fmt.Errorf("SLACK_MCP_XOXP_TOKEN not set")
@@ -52,7 +58,7 @@ func SetupMCP(sseKey string) (*MCPConnection, error) {
 		"SLACK_MCP_HOST="+host,
 		"SLACK_MCP_PORT="+strconv.Itoa(port),
 		"SLACK_MCP_ADD_MESSAGE_TOOL=true",
-		"SLACK_MCP_SSE_API_KEY="+sseKey,
+		"SLACK_MCP_SSE_API_KEY="+cfg.SSEKey,
 		"SLACK_MCP_USERS_CACHE=/tmp/users_cache.json",
 		"SLACK_MCP_CHANNELS_CACHE=/tmp/channels_cache_v3.json",
 	)
