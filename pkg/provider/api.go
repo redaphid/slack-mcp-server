@@ -2,13 +2,9 @@ package provider
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
@@ -101,7 +97,7 @@ type ApiProvider struct {
 }
 
 func NewMCPSlackClient(authProvider auth.Provider, logger *zap.Logger) (*MCPSlackClient, error) {
-	httpClient := provideHTTPClient(authProvider.Cookies(), logger)
+	httpClient := transport.ProvideHTTPClient(authProvider.Cookies(), logger)
 
 	slackClient := slack.New(authProvider.SlackToken(),
 		slack.OptionHTTPClient(httpClient),
@@ -649,71 +645,6 @@ func (ap *ApiProvider) ServerTransport() string {
 
 func (ap *ApiProvider) Slack() SlackAPI {
 	return ap.client
-}
-
-func provideHTTPClient(cookies []*http.Cookie, logger *zap.Logger) *http.Client {
-	var proxy func(*http.Request) (*url.URL, error)
-	if proxyURL := os.Getenv("SLACK_MCP_PROXY"); proxyURL != "" {
-		parsed, err := url.Parse(proxyURL)
-		if err != nil {
-			logger.Fatal("Failed to parse proxy URL",
-				zap.String("proxy_url", proxyURL),
-				zap.Error(err))
-		}
-
-		proxy = http.ProxyURL(parsed)
-	} else {
-		proxy = nil
-	}
-
-	rootCAs, _ := x509.SystemCertPool()
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-	}
-
-	if localCertFile := os.Getenv("SLACK_MCP_SERVER_CA"); localCertFile != "" {
-		certs, err := ioutil.ReadFile(localCertFile)
-		if err != nil {
-			logger.Fatal("Failed to read local certificate file",
-				zap.String("cert_file", localCertFile),
-				zap.Error(err))
-		}
-
-		if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
-			logger.Warn("No certs appended, using system certs only")
-		}
-	}
-
-	insecure := false
-	if os.Getenv("SLACK_MCP_SERVER_CA_INSECURE") != "" {
-		if localCertFile := os.Getenv("SLACK_MCP_SERVER_CA"); localCertFile != "" {
-			logger.Fatal("SLACK_MCP_SERVER_CA and SLACK_MCP_SERVER_CA_INSECURE cannot be used together")
-		}
-		insecure = true
-	}
-
-	customHTTPTransport := &http.Transport{
-		Proxy: proxy,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: insecure,
-			RootCAs:            rootCAs,
-		},
-	}
-
-	userAgent := defaultUA
-	if os.Getenv("SLACK_MCP_USER_AGENT") != "" {
-		userAgent = os.Getenv("SLACK_MCP_USER_AGENT")
-	}
-
-	client := &http.Client{
-		Transport: transport.New(
-			customHTTPTransport,
-			userAgent,
-			cookies,
-		),
-	}
-
-	return client
 }
 
 func mapChannel(
