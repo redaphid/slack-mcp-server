@@ -16,6 +16,9 @@ For [Claude Desktop](https://claude.ai/download) users, you can use the DXT exte
     - You may also change User-Agent if needed if you have Enterprise Slack.
 6. Enbale MCP Server.
 
+> [!IMPORTANT]
+> You may need to disable bundled node in Claude Desktop and let it use node from host machine to avoid some startup issues in case you encounter them. It is DXT known bug: https://github.com/anthropics/dxt/issues/45#issuecomment-3050284228
+
 ### Using Cursor Installer
 
 The MCP server can be installed using the Cursor One-Click method.
