@@ -25,7 +25,7 @@ func main() {
 	flag.StringVar(&transport, "transport", "stdio", "Transport type (stdio or sse)")
 	flag.Parse()
 
-	logger, err := newLogger()
+	logger, err := newLogger(transport)
 	if err != nil {
 		panic(err)
 	}
@@ -188,7 +188,7 @@ func validateToolConfig(config string) error {
 	return nil
 }
 
-func newLogger() (*zap.Logger, error) {
+func newLogger(transport string) (*zap.Logger, error) {
 	atomicLevel := zap.NewAtomicLevelAt(zap.InfoLevel)
 	if envLevel := os.Getenv("SLACK_MCP_LOG_LEVEL"); envLevel != "" {
 		if err := atomicLevel.UnmarshalText([]byte(envLevel)); err != nil {
@@ -199,6 +199,14 @@ func newLogger() (*zap.Logger, error) {
 	useJSON := shouldUseJSONFormat()
 	useColors := shouldUseColors() && !useJSON
 
+	// Determine output path based on transport type
+	// For stdio transport, use stderr to avoid JSON-RPC protocol conflicts
+	// For sse transport, use stdout to preserve existing behavior
+	outputPath := "stdout"
+	if transport == "stdio" {
+		outputPath = "stderr"
+	}
+
 	var config zap.Config
 
 	if useJSON {
@@ -206,7 +214,7 @@ func newLogger() (*zap.Logger, error) {
 			Level:            atomicLevel,
 			Development:      false,
 			Encoding:         "json",
-			OutputPaths:      []string{"stderr"},
+			OutputPaths:      []string{outputPath},
 			ErrorOutputPaths: []string{"stderr"},
 			EncoderConfig: zapcore.EncoderConfig{
 				TimeKey:       "timestamp",
@@ -224,7 +232,7 @@ func newLogger() (*zap.Logger, error) {
 			Level:            atomicLevel,
 			Development:      true,
 			Encoding:         "console",
-			OutputPaths:      []string{"stderr"},
+			OutputPaths:      []string{outputPath},
 			ErrorOutputPaths: []string{"stderr"},
 			EncoderConfig: zapcore.EncoderConfig{
 				TimeKey:          "timestamp",
