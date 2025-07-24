@@ -12,18 +12,14 @@ services:
     ports:
       - "3001:3001"
       - "40000:40000"
-    # Optional: Uncomment to mount the CA certificate if you need to trust a custom CA
-    # Don't forget to set SLACK_MCP_SERVER_CA=/usr/local/share/ca-certificates/ca.crt
-    #
-    volumes:
-      - ./ca-cert.crt:/usr/local/share/ca-certificates/ca.crt
     env_file:
       - .env
     environment:
       SLACK_MCP_HOST: "0.0.0.0"
       SLACK_MCP_PORT: "3001"
-    # If you use this docker-compose file with HTTP Toolkit, you
-    # likely want to set SLACK_MCP_PROXY="http://host.docker.internal:8000"
+    # If you use this docker-compose file with HTTP Toolkit, you likely want to set
+    # SLACK_MCP_PROXY="http://host.docker.internal:8000"
+    # SLACK_MCP_SERVER_CA_TOOLKIT="yes"
     extra_hosts:
      - "host.docker.internal:host-gateway"
 
