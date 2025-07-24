@@ -13,9 +13,9 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/korotovsky/slack-mcp-server/pkg/text"
 	utls "github.com/refraction-networking/utls"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
@@ -86,7 +86,6 @@ type uTLSTransport struct {
 	proxy          func(*http.Request) (*url.URL, error)
 	clientHelloID  utls.ClientHelloID
 	http2Transport *http2.Transport
-	mu             sync.Mutex
 	logger         *zap.Logger
 }
 
@@ -282,7 +281,7 @@ func (t *uTLSTransport) establishTLS(conn net.Conn, serverName string) (net.Conn
 		zap.String("cipher_suite", fmt.Sprintf("%x", state.CipherSuite)),
 		zap.String("version", fmt.Sprintf("%x", state.Version)),
 		zap.String("negotiated_protocol", fmt.Sprintf("%x", state.NegotiatedProtocol)),
-		zap.String("server_certificates", fmt.Sprintf("%x", state.PeerCertificates)),
+		zap.String("server_certificates", fmt.Sprintf("%v", text.HumanizeCertificates(state.PeerCertificates))),
 	)
 
 	return tlsConn, nil
