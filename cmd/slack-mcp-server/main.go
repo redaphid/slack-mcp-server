@@ -206,7 +206,7 @@ func newLogger() (*zap.Logger, error) {
 			Level:            atomicLevel,
 			Development:      false,
 			Encoding:         "json",
-			OutputPaths:      []string{"stdout"},
+			OutputPaths:      []string{"stderr"},
 			ErrorOutputPaths: []string{"stderr"},
 			EncoderConfig: zapcore.EncoderConfig{
 				TimeKey:       "timestamp",
@@ -224,7 +224,7 @@ func newLogger() (*zap.Logger, error) {
 			Level:            atomicLevel,
 			Development:      true,
 			Encoding:         "console",
-			OutputPaths:      []string{"stdout"},
+			OutputPaths:      []string{"stderr"},
 			ErrorOutputPaths: []string{"stderr"},
 			EncoderConfig: zapcore.EncoderConfig{
 				TimeKey:          "timestamp",
