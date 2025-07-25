@@ -1,6 +1,7 @@
 package text
 
 import (
+	"crypto/x509"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -24,6 +25,19 @@ func ProcessText(s string) string {
 	s = filterSpecialChars(s)
 
 	return s
+}
+
+func HumanizeCertificates(certs []*x509.Certificate) string {
+	var descriptions []string
+	for _, cert := range certs {
+		subjectCN := cert.Subject.CommonName
+		issuerCN := cert.Issuer.CommonName
+		expiry := cert.NotAfter.Format("2006-01-02")
+
+		description := fmt.Sprintf("CN=%s (Issuer CN=%s, expires %s)", subjectCN, issuerCN, expiry)
+		descriptions = append(descriptions, description)
+	}
+	return strings.Join(descriptions, ", ")
 }
 
 func filterSpecialChars(text string) string {

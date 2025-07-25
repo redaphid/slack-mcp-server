@@ -6,16 +6,18 @@ services:
       - app-tier
     ports:
       - "3001:3001"
-    # Optional: Uncomment to mount the CA certificate if you need to trust a custom CA
-    # Don't forget to set SLACK_MCP_SERVER_CA=/usr/local/share/ca-certificates/ca.crt
-    #
-    # volumes:
-    #   - ./ca-cert.crt:/usr/local/share/ca-certificates/ca.crt
+    volumes:
+      - users_cache:/app/mcp-server/.users_cache.json
+      - channels_cache:/app/mcp-server/.channels_cache.json
     env_file:
       - .env
     environment:
       SLACK_MCP_HOST: "0.0.0.0"
       SLACK_MCP_PORT: "3001"
+
+volumes:
+  users_cache:
+  channels_cache:
 
 networks:
   app-tier:
