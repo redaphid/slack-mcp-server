@@ -199,9 +199,6 @@ func newLogger(transport string) (*zap.Logger, error) {
 	useJSON := shouldUseJSONFormat()
 	useColors := shouldUseColors() && !useJSON
 
-	// Determine output path based on transport type
-	// For stdio transport, use stderr to avoid JSON-RPC protocol conflicts
-	// For sse transport, use stdout to preserve existing behavior
 	outputPath := "stdout"
 	if transport == "stdio" {
 		outputPath = "stderr"
