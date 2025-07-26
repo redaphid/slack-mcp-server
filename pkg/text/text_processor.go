@@ -7,10 +7,11 @@ import (
 	"regexp"
 	"strings"
 
+	"go.uber.org/zap"
 	"golang.org/x/net/publicsuffix"
 )
 
-func IsUnfurlingEnabled(text string, opt string) bool {
+func IsUnfurlingEnabled(text string, opt string, logger *zap.Logger) bool {
 	if opt == "" || opt == "no" || opt == "false" || opt == "0" {
 		return false
 	}
@@ -41,6 +42,12 @@ func IsUnfurlingEnabled(text string, opt string) bool {
 		}
 		host = strings.TrimPrefix(host, "www.")
 		if _, ok := allowed[host]; !ok {
+			if logger != nil {
+				logger.Warn("Security: attempt to unfurl non-whitelisted host",
+					zap.String("host", host),
+					zap.String("allowed", opt),
+				)
+			}
 			return false
 		}
 	}
@@ -58,6 +65,12 @@ func IsUnfurlingEnabled(text string, opt string) bool {
 		}
 
 		if _, ok := allowed[d]; !ok {
+			if logger != nil {
+				logger.Warn("Security: attempt to unfurl non-whitelisted host",
+					zap.String("host", d),
+					zap.String("allowed", opt),
+				)
+			}
 			return false
 		}
 	}

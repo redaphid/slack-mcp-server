@@ -182,7 +182,7 @@ func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Conte
 	}
 
 	unfurlOpt := os.Getenv("SLACK_MCP_ADD_MESSAGE_UNFURLING")
-	if text.IsUnfurlingEnabled(params.text, unfurlOpt) {
+	if text.IsUnfurlingEnabled(params.text, unfurlOpt, ch.logger) {
 		options = append(options, slack.MsgOptionEnableLinkUnfurl())
 	} else {
 		options = append(options, slack.MsgOptionDisableLinkUnfurl())
