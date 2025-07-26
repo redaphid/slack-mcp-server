@@ -99,7 +99,7 @@ func TestIsUnfurlingEnabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsUnfurlingEnabled(tt.text, tt.opt)
+			got := IsUnfurlingEnabled(tt.text, tt.opt, nil)
 			if got != tt.want {
 				t.Fatalf("opt=%q text=%q → got %v; want %v",
 					tt.opt, tt.text, got, tt.want)
