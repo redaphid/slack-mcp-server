@@ -181,6 +181,14 @@ func (ch *ConversationsHandler) ConversationsAddMessageHandler(ctx context.Conte
 		return nil, errors.New("content_type must be either 'text/plain' or 'text/markdown'")
 	}
 
+	unfurlOpt := os.Getenv("SLACK_MCP_ADD_MESSAGE_UNFURLING")
+	if text.IsUnfurlingEnabled(params.text, unfurlOpt) {
+		options = append(options, slack.MsgOptionEnableLinkUnfurl())
+	} else {
+		options = append(options, slack.MsgOptionDisableLinkUnfurl())
+		options = append(options, slack.MsgOptionDisableMediaUnfurl())
+	}
+
 	ch.logger.Debug("Posting Slack message",
 		zap.String("channel", params.channel),
 		zap.String("thread_ts", params.threadTs),

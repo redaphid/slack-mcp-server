@@ -29,7 +29,7 @@ EXPOSE 3001
 
 CMD ["mcp-server", "--transport", "sse"]
 
-FROM alpine:3.18 AS production
+FROM alpine:3.22 AS production
 
 RUN apk add --no-cache ca-certificates net-tools curl
 
