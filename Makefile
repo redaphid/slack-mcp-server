@@ -24,10 +24,11 @@ ARCHS = amd64 arm64
 CLEAN_TARGETS :=
 CLEAN_TARGETS += '$(BINARY_NAME)'
 CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./build/$(BINARY_NAME)-$(os)-$(arch)$(if $(findstring windows,$(os)),.exe,)))
+CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./build/extension.dxt/server/$(BINARY_NAME)-$(os)-$(arch)))
 CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./npm/$(BINARY_NAME)-$(os)-$(arch)/bin/))
-CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./extension.dxt/server/$(BINARY_NAME)-$(os)-$(arch)))
-CLEAN_TARGETS += ./npm/slack-mcp-server/.npmrc ./npm/slack-mcp-server/LICENSE ./npm/slack-mcp-server/README.md
 CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./npm/$(BINARY_NAME)-$(os)-$(arch)/.npmrc))
+CLEAN_TARGETS += ./npm/slack-mcp-server/.npmrc ./npm/slack-mcp-server/LICENSE ./npm/slack-mcp-server/README.md build/extension.dxt/manifest.json build/extension.dxt/icon.png
+CLEAN_TARGETS += ./build/slack-mcp-server.dxt ./build/slack-mcp-server-$(NPM_VERSION).dxt
 
 # The help will print out all targets with their descriptions organized bellow their categories. The categories are represented by `##@` and the target descriptions by `##`.
 # The awk commands is responsible to read the entire set of makefiles included in this invocation, looking for lines of the file as xyz: ## something, and then pretty-format the target and help. Then, if there's a line with ##@ something, that gets pretty-printed as a category.
@@ -60,11 +61,13 @@ build-dxt: ## Build DTX extension
 	$(foreach os,$(OSES),$(foreach arch,$(ARCHS), \
 		EXECUTABLE=$(BINARY_NAME)-$(os)-$(arch)$(if $(findstring windows,$(os)),.exe,); \
 		DIRNAME=$(BINARY_NAME)-$(os)-$(arch); \
-		cp ./build/$$EXECUTABLE ./extension.dxt/server/; \
+		cp ./build/$$EXECUTABLE ./build/extension.dxt/server/; \
 	))
-	cp npm/slack-mcp-server/bin/index.js ./extension.dxt/server/
-	chmod +x extension.dxt/server/slack-mcp-server-*
-	dxt pack extension.dxt/ build/slack-mcp-server-${NPM_VERSION}.dxt
+	cp npm/slack-mcp-server/bin/index.js ./build/extension.dxt/server/
+	cp images/icon.png ./build/extension.dxt/
+	jq '.version = "$(NPM_VERSION)"' ./manifest-dxt.json > tmp.json && mv tmp.json ./build/extension.dxt/manifest.json;
+	chmod +x build/extension.dxt/server/slack-mcp-server-*
+	dxt pack build/extension.dxt/ build/slack-mcp-server-${NPM_VERSION}.dxt
 	cp build/slack-mcp-server-${NPM_VERSION}.dxt build/slack-mcp-server.dxt
 
 .PHONY: npm-copy-binaries
