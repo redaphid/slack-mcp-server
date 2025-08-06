@@ -14,7 +14,7 @@ For [Claude Desktop](https://claude.ai/download) users, you can use the DXT exte
     - Value for `SLACK_MCP_XOXC_TOKEN` and `SLACK_MCP_XOXD_TOKEN` in case of `xoxc/xoxd` method, or `SLACK_MCP_XOXP_TOKEN` in case of `xoxp`.
     - You may also enable `Add Message Tool` to allow posting messages to channels.
     - You may also change User-Agent if needed if you have Enterprise Slack.
-6. Enbale MCP Server.
+6. Enable MCP Server.
 
 > [!IMPORTANT]
 > You may need to disable bundled node in Claude Desktop and let it use node from host machine to avoid some startup issues in case you encounter them. It is DXT known bug: https://github.com/anthropics/dxt/issues/45#issuecomment-3050284228
