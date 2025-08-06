@@ -512,6 +512,16 @@ func TestUnitBuildDateFiltersUnit(t *testing.T) {
 }
 
 func TestUnitLimitByExpression_Valid(t *testing.T) {
+	now := time.Now()
+
+	oneMonthAgo := now.AddDate(0, -1, 0)
+	twoMonthsAgo := now.AddDate(0, -2, 0)
+
+	oneMonthSpan := int64(now.Sub(oneMonthAgo).Seconds())
+	twoMonthSpan := int64(now.Sub(twoMonthsAgo).Seconds())
+
+	const tolerance = 86400
+
 	tests := []struct {
 		name    string
 		input   string
@@ -523,8 +533,8 @@ func TestUnitLimitByExpression_Valid(t *testing.T) {
 		{"2 days", "2d", 86400, 172800},
 		{"1 week", "1w", 6 * 86400, 7 * 86400},
 		{"2 weeks", "2w", 13 * 86400, 14 * 86400},
-		{"1 month", "1m", 28 * 86400, 31 * 86400},
-		{"2 months", "2m", 2 * 28 * 86400, 2 * 31 * 86400},
+		{"1 month", "1m", oneMonthSpan - tolerance, oneMonthSpan + tolerance},
+		{"2 months", "2m", twoMonthSpan - tolerance, twoMonthSpan + tolerance},
 	}
 
 	for _, tt := range tests {
