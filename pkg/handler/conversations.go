@@ -39,6 +39,7 @@ var validFilterKeys = map[string]struct{}{
 }
 
 type Message struct {
+	MsgID    string `json:"msgID"`
 	UserID   string `json:"userID"`
 	UserName string `json:"userUser"`
 	RealName string `json:"realName"`
@@ -381,16 +382,23 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 			warn = true
 		}
 
+		timestamp, err := text.TimestampToIsoRFC3339(msg.Timestamp)
+		if err != nil {
+			ch.logger.Error("Failed to convert timestamp to RFC3339", zap.Error(err))
+			continue
+		}
+
 		msgText := msg.Text + text.AttachmentsTo2CSV(msg.SubType, msg.Text, msg.Attachments)
 
 		messages = append(messages, Message{
+			MsgID:    msg.Timestamp,
 			UserID:   msg.User,
 			UserName: userName,
 			RealName: realName,
 			Text:     text.ProcessText(msgText),
 			Channel:  channel,
 			ThreadTs: msg.ThreadTimestamp,
-			Time:     msg.Timestamp,
+			Time:     timestamp,
 		})
 	}
 
@@ -415,15 +423,24 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 		if !ok {
 			warn = true
 		}
+
 		threadTs, _ := extractThreadTS(msg.Permalink)
+
+		timestamp, err := text.TimestampToIsoRFC3339(msg.Timestamp)
+		if err != nil {
+			ch.logger.Error("Failed to convert timestamp to RFC3339", zap.Error(err))
+			continue
+		}
+
 		messages = append(messages, Message{
+			MsgID:    msg.Timestamp,
 			UserID:   msg.User,
 			UserName: userName,
 			RealName: realName,
 			Text:     text.ProcessText(msg.Text),
 			Channel:  fmt.Sprintf("#%s", msg.Channel.Name),
 			ThreadTs: threadTs,
-			Time:     msg.Timestamp,
+			Time:     timestamp,
 		})
 	}
 
