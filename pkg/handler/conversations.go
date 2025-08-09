@@ -420,7 +420,10 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 
 	for _, msg := range slackMessages {
 		userName, realName, ok := getUserInfo(msg.User, usersMap.Users)
-		if !ok {
+
+		if !ok && msg.User == "" && msg.Username != "" {
+			userName, realName, ok = getBotInfo(msg.Username)
+		} else if !ok {
 			warn = true
 		}
 
