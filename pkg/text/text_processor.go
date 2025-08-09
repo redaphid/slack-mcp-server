@@ -42,7 +42,9 @@ func AttachmentToText(att slack.Attachment) string {
 	}
 
 	if att.Footer != "" {
-		parts = append(parts, fmt.Sprintf("Footer: %s", att.Footer))
+		ts, _ := TimestampToIsoRFC3339(string(att.Ts) + ".000000")
+
+		parts = append(parts, fmt.Sprintf("Footer: %s @ %s", att.Footer, ts))
 	}
 
 	result := strings.Join(parts, "; ")
