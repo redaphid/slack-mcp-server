@@ -33,14 +33,6 @@ func AttachmentToText(att slack.Attachment) string {
 		parts = append(parts, fmt.Sprintf("Text: %s", att.Text))
 	}
 
-	if len(att.Fields) > 0 {
-		var fieldStrs []string
-		for _, field := range att.Fields {
-			fieldStrs = append(fieldStrs, fmt.Sprintf("%s: %s", field.Title, field.Value))
-		}
-		parts = append(parts, fmt.Sprintf("Fields: [%s]", strings.Join(fieldStrs, "; ")))
-	}
-
 	if att.Footer != "" {
 		ts, _ := TimestampToIsoRFC3339(string(att.Ts) + ".000000")
 
@@ -52,16 +44,14 @@ func AttachmentToText(att slack.Attachment) string {
 	result = strings.ReplaceAll(result, "\n", " ")
 	result = strings.ReplaceAll(result, "\r", " ")
 	result = strings.ReplaceAll(result, "\t", " ")
-	result = strings.TrimSpace(result)
-
-	result = strings.ReplaceAll(result, ",", "‚")
 	result = strings.ReplaceAll(result, "(", "[")
 	result = strings.ReplaceAll(result, ")", "]")
+	result = strings.TrimSpace(result)
 
 	return result
 }
 
-func AttachmentsTo2CSV(msgType string, msgText string, attachments []slack.Attachment) string {
+func AttachmentsTo2CSV(msgText string, attachments []slack.Attachment) string {
 	if len(attachments) == 0 {
 		return ""
 	}
@@ -69,10 +59,8 @@ func AttachmentsTo2CSV(msgType string, msgText string, attachments []slack.Attac
 	var descriptions []string
 	for _, att := range attachments {
 		plainText := AttachmentToText(att)
-		if plainText != "" && msgType == "bot_message" {
+		if plainText != "" {
 			descriptions = append(descriptions, fmt.Sprintf("%s", plainText))
-		} else {
-			descriptions = append(descriptions, fmt.Sprintf("(%s)", plainText))
 		}
 	}
 

@@ -388,7 +388,7 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 			continue
 		}
 
-		msgText := msg.Text + text.AttachmentsTo2CSV(msg.SubType, msg.Text, msg.Attachments)
+		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
 
 		messages = append(messages, Message{
 			MsgID:    msg.Timestamp,
@@ -432,12 +432,14 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 			continue
 		}
 
+		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
+
 		messages = append(messages, Message{
 			MsgID:    msg.Timestamp,
 			UserID:   msg.User,
 			UserName: userName,
 			RealName: realName,
-			Text:     text.ProcessText(msg.Text),
+			Text:     text.ProcessText(msgText),
 			Channel:  fmt.Sprintf("#%s", msg.Channel.Name),
 			ThreadTs: threadTs,
 			Time:     timestamp,
