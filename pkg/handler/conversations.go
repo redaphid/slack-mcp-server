@@ -381,7 +381,7 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 			warn = true
 		}
 
-		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
+		msgText := msg.Text + text.AttachmentsTo2CSV(msg.SubType, msg.Text, msg.Attachments)
 
 		messages = append(messages, Message{
 			UserID:   msg.User,

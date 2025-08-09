@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/slack-go/slack"
 	"go.uber.org/zap"
@@ -57,7 +59,7 @@ func AttachmentToText(att slack.Attachment) string {
 	return result
 }
 
-func AttachmentsTo2CSV(msgText string, attachments []slack.Attachment) string {
+func AttachmentsTo2CSV(msgType string, msgText string, attachments []slack.Attachment) string {
 	if len(attachments) == 0 {
 		return ""
 	}
@@ -65,14 +67,16 @@ func AttachmentsTo2CSV(msgText string, attachments []slack.Attachment) string {
 	var descriptions []string
 	for _, att := range attachments {
 		plainText := AttachmentToText(att)
-		if plainText != "" {
+		if plainText != "" && msgType == "bot_message" {
+			descriptions = append(descriptions, fmt.Sprintf("%s", plainText))
+		} else {
 			descriptions = append(descriptions, fmt.Sprintf("(%s)", plainText))
 		}
 	}
 
 	prefix := ""
 	if msgText != "" {
-		prefix = ". Attachments: "
+		prefix = ". "
 	}
 
 	return prefix + strings.Join(descriptions, ", ")
@@ -156,6 +160,27 @@ func Workspace(rawURL string) (string, error) {
 		return "", fmt.Errorf("invalid Slack URL: %q", rawURL)
 	}
 	return parts[0], nil
+}
+
+func TimestampToIsoRFC3339(slackTS string) (string, error) {
+	parts := strings.Split(slackTS, ".")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid slack timestamp format: %s", slackTS)
+	}
+
+	seconds, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse seconds: %v", err)
+	}
+
+	microseconds, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse microseconds: %v", err)
+	}
+
+	t := time.Unix(seconds, microseconds*1000)
+
+	return t.UTC().Format(time.RFC3339), nil
 }
 
 func ProcessText(s string) string {
