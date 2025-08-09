@@ -368,10 +368,16 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 	warn := false
 
 	for _, msg := range slackMessages {
-		if msg.SubType != "" && !includeActivity {
+		if (msg.SubType != "" && msg.SubType != "bot_message") && !includeActivity {
 			continue
 		}
+
 		userName, realName, ok := getUserInfo(msg.User, usersMap.Users)
+
+		if !ok && msg.SubType == "bot_message" {
+			userName, realName, ok = getBotInfo(msg.Username)
+		}
+
 		if !ok {
 			warn = true
 		}
@@ -382,12 +388,14 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 			continue
 		}
 
+		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
+
 		messages = append(messages, Message{
 			MsgID:    msg.Timestamp,
 			UserID:   msg.User,
 			UserName: userName,
 			RealName: realName,
-			Text:     text.ProcessText(msg.Text),
+			Text:     text.ProcessText(msgText),
 			Channel:  channel,
 			ThreadTs: msg.ThreadTimestamp,
 			Time:     timestamp,
@@ -412,7 +420,10 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 
 	for _, msg := range slackMessages {
 		userName, realName, ok := getUserInfo(msg.User, usersMap.Users)
-		if !ok {
+
+		if !ok && msg.User == "" && msg.Username != "" {
+			userName, realName, ok = getBotInfo(msg.Username)
+		} else if !ok {
 			warn = true
 		}
 
@@ -424,12 +435,14 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 			continue
 		}
 
+		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
+
 		messages = append(messages, Message{
 			MsgID:    msg.Timestamp,
 			UserID:   msg.User,
 			UserName: userName,
 			RealName: realName,
-			Text:     text.ProcessText(msg.Text),
+			Text:     text.ProcessText(msgText),
 			Channel:  fmt.Sprintf("#%s", msg.Channel.Name),
 			ThreadTs: threadTs,
 			Time:     timestamp,
@@ -717,6 +730,10 @@ func getUserInfo(userID string, usersMap map[string]slack.User) (userName, realN
 		return u.Name, u.RealName, true
 	}
 	return userID, userID, false
+}
+
+func getBotInfo(botID string) (userName, realName string, ok bool) {
+	return botID, botID, true
 }
 
 func limitByNumeric(limit string, defaultLimit int) (int, error) {

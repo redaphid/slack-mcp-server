@@ -9,9 +9,68 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slack-go/slack"
 	"go.uber.org/zap"
 	"golang.org/x/net/publicsuffix"
 )
+
+func AttachmentToText(att slack.Attachment) string {
+	var parts []string
+
+	if att.Title != "" {
+		parts = append(parts, fmt.Sprintf("Title: %s", att.Title))
+	}
+
+	if att.AuthorName != "" {
+		parts = append(parts, fmt.Sprintf("Author: %s", att.AuthorName))
+	}
+
+	if att.Pretext != "" {
+		parts = append(parts, fmt.Sprintf("Pretext: %s", att.Pretext))
+	}
+
+	if att.Text != "" {
+		parts = append(parts, fmt.Sprintf("Text: %s", att.Text))
+	}
+
+	if att.Footer != "" {
+		ts, _ := TimestampToIsoRFC3339(string(att.Ts) + ".000000")
+
+		parts = append(parts, fmt.Sprintf("Footer: %s @ %s", att.Footer, ts))
+	}
+
+	result := strings.Join(parts, "; ")
+
+	result = strings.ReplaceAll(result, "\n", " ")
+	result = strings.ReplaceAll(result, "\r", " ")
+	result = strings.ReplaceAll(result, "\t", " ")
+	result = strings.ReplaceAll(result, "(", "[")
+	result = strings.ReplaceAll(result, ")", "]")
+	result = strings.TrimSpace(result)
+
+	return result
+}
+
+func AttachmentsTo2CSV(msgText string, attachments []slack.Attachment) string {
+	if len(attachments) == 0 {
+		return ""
+	}
+
+	var descriptions []string
+	for _, att := range attachments {
+		plainText := AttachmentToText(att)
+		if plainText != "" {
+			descriptions = append(descriptions, fmt.Sprintf("%s", plainText))
+		}
+	}
+
+	prefix := ""
+	if msgText != "" {
+		prefix = ". "
+	}
+
+	return prefix + strings.Join(descriptions, ", ")
+}
 
 func IsUnfurlingEnabled(text string, opt string, logger *zap.Logger) bool {
 	if opt == "" || opt == "no" || opt == "false" || opt == "0" {
