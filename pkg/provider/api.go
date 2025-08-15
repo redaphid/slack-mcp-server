@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/slack-go/slack"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 const usersNotReadyMsg = "users cache is not ready yet, sync process is still running... please wait"
@@ -77,6 +78,7 @@ type MCPSlackClient struct {
 	authProvider auth.Provider
 
 	isEnterprise bool
+	isOAuth      bool
 	teamEndpoint string
 }
 
@@ -84,6 +86,8 @@ type ApiProvider struct {
 	transport string
 	client    SlackAPI
 	logger    *zap.Logger
+
+	rateLimiter *rate.Limiter
 
 	users      map[string]slack.User
 	usersInv   map[string]string
@@ -138,6 +142,7 @@ func NewMCPSlackClient(authProvider auth.Provider, logger *zap.Logger) (*MCPSlac
 		authResponse: authResponse,
 		authProvider: authProvider,
 		isEnterprise: isEnterprise,
+		isOAuth:      strings.HasPrefix(authProvider.SlackToken(), "xoxp-"),
 		teamEndpoint: authResp.URL,
 	}, nil
 }
@@ -179,49 +184,57 @@ func (c *MCPSlackClient) MarkConversationContext(ctx context.Context, channel, t
 }
 
 func (c *MCPSlackClient) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
+	// Please see https://github.com/korotovsky/slack-mcp-server/issues/73
+	// It seems that `conversations.list` works with `xoxp` tokens within Enterprise Grid setups
+	// and if `xoxc`/`xoxd` defined we fallback to edge client.
+	// In non Enterprise Grid setups we always use `conversations.list` api as it accepts both token types wtf.
 	if c.isEnterprise {
-		edgeChannels, _, err := c.edgeClient.GetConversationsContext(ctx, nil)
-		if err != nil {
-			return nil, "", err
-		}
-
-		var channels []slack.Channel
-		for _, ec := range edgeChannels {
-			if params != nil && params.ExcludeArchived && ec.IsArchived {
-				continue
+		if c.isOAuth {
+			return c.slackClient.GetConversationsContext(ctx, params)
+		} else {
+			edgeChannels, _, err := c.edgeClient.GetConversationsContext(ctx, nil)
+			if err != nil {
+				return nil, "", err
 			}
 
-			channels = append(channels, slack.Channel{
-				IsGeneral: ec.IsGeneral,
-				GroupConversation: slack.GroupConversation{
-					Conversation: slack.Conversation{
-						ID:                 ec.ID,
-						IsIM:               ec.IsIM,
-						IsMpIM:             ec.IsMpIM,
-						IsPrivate:          ec.IsPrivate,
-						Created:            slack.JSONTime(ec.Created.Time().UnixMilli()),
-						Unlinked:           ec.Unlinked,
-						NameNormalized:     ec.NameNormalized,
-						IsShared:           ec.IsShared,
-						IsExtShared:        ec.IsExtShared,
-						IsOrgShared:        ec.IsOrgShared,
-						IsPendingExtShared: ec.IsPendingExtShared,
-						NumMembers:         ec.NumMembers,
-					},
-					Name:       ec.Name,
-					IsArchived: ec.IsArchived,
-					Members:    ec.Members,
-					Topic: slack.Topic{
-						Value: ec.Topic.Value,
-					},
-					Purpose: slack.Purpose{
-						Value: ec.Purpose.Value,
-					},
-				},
-			})
-		}
+			var channels []slack.Channel
+			for _, ec := range edgeChannels {
+				if params != nil && params.ExcludeArchived && ec.IsArchived {
+					continue
+				}
 
-		return channels, "", nil
+				channels = append(channels, slack.Channel{
+					IsGeneral: ec.IsGeneral,
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID:                 ec.ID,
+							IsIM:               ec.IsIM,
+							IsMpIM:             ec.IsMpIM,
+							IsPrivate:          ec.IsPrivate,
+							Created:            slack.JSONTime(ec.Created.Time().UnixMilli()),
+							Unlinked:           ec.Unlinked,
+							NameNormalized:     ec.NameNormalized,
+							IsShared:           ec.IsShared,
+							IsExtShared:        ec.IsExtShared,
+							IsOrgShared:        ec.IsOrgShared,
+							IsPendingExtShared: ec.IsPendingExtShared,
+							NumMembers:         ec.NumMembers,
+						},
+						Name:       ec.Name,
+						IsArchived: ec.IsArchived,
+						Members:    ec.Members,
+						Topic: slack.Topic{
+							Value: ec.Topic.Value,
+						},
+						Purpose: slack.Purpose{
+							Value: ec.Purpose.Value,
+						},
+					},
+				})
+			}
+
+			return channels, "", nil
+		}
 	}
 
 	return c.slackClient.GetConversationsContext(ctx, params)
@@ -331,6 +344,8 @@ func newWithXOXP(transport string, authProvider auth.ValueAuth, logger *zap.Logg
 		client:    client,
 		logger:    logger,
 
+		rateLimiter: limiter.Tier2.Limiter(),
+
 		users:      make(map[string]slack.User),
 		usersInv:   map[string]string{},
 		usersCache: usersCache,
@@ -370,6 +385,8 @@ func newWithXOXC(transport string, authProvider auth.ValueAuth, logger *zap.Logg
 		transport: transport,
 		client:    client,
 		logger:    logger,
+
+		rateLimiter: limiter.Tier2.Limiter(),
 
 		users:      make(map[string]slack.User),
 		usersInv:   map[string]string{},
@@ -551,8 +568,12 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 		err     error
 	)
 
-	lim := limiter.Tier2boost.Limiter()
 	for {
+		if err := ap.rateLimiter.Wait(ctx); err != nil {
+			ap.logger.Error("Rate limiter wait failed", zap.Error(err))
+			return nil
+		}
+
 		channels, nextcur, err = ap.client.GetConversationsContext(ctx, params)
 		if err != nil {
 			ap.logger.Error("Failed to fetch channels", zap.Error(err))
@@ -576,10 +597,6 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 				ap.ProvideUsersMap().Users,
 			)
 			chans = append(chans, ch)
-		}
-
-		if err := lim.Wait(ctx); err != nil {
-			return nil
 		}
 
 		for _, ch := range chans {
