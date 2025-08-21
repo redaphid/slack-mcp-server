@@ -38,23 +38,17 @@ var validFilterKeys = map[string]struct{}{
 	"during": {},
 }
 
-type Reaction struct {
-	Name  string   `json:"name"`
-	Count int      `json:"count"`
-	Users []string `json:"users"`
-}
-
 type Message struct {
-	MsgID     string     `json:"msgID"`
-	UserID    string     `json:"userID"`
-	UserName  string     `json:"userUser"`
-	RealName  string     `json:"realName"`
-	Channel   string     `json:"channelID"`
-	ThreadTs  string     `json:"ThreadTs"`
-	Text      string     `json:"text"`
-	Time      string     `json:"time"`
-	Reactions []Reaction `json:"reactions,omitempty"`
-	Cursor    string     `json:"cursor"`
+	MsgID     string `json:"msgID"`
+	UserID    string `json:"userID"`
+	UserName  string `json:"userUser"`
+	RealName  string `json:"realName"`
+	Channel   string `json:"channelID"`
+	ThreadTs  string `json:"ThreadTs"`
+	Text      string `json:"text"`
+	Time      string `json:"time"`
+	Reactions string `json:"reactions,omitempty"`
+	Cursor    string `json:"cursor"`
 }
 
 type User struct {
@@ -397,15 +391,12 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 
 		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
 
-		// Convert reactions from slack.ItemReaction to local Reaction type
-		var reactions []Reaction
+		// Convert reactions to flat pipe-separated format: emoji:count|emoji:count
+		var reactionParts []string
 		for _, r := range msg.Reactions {
-			reactions = append(reactions, Reaction{
-				Name:  r.Name,
-				Count: r.Count,
-				Users: r.Users,
-			})
+			reactionParts = append(reactionParts, fmt.Sprintf("%s:%d", r.Name, r.Count))
 		}
+		reactionsString := strings.Join(reactionParts, "|")
 
 		messages = append(messages, Message{
 			MsgID:     msg.Timestamp,
@@ -416,7 +407,7 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 			Channel:   channel,
 			ThreadTs:  msg.ThreadTimestamp,
 			Time:      timestamp,
-			Reactions: reactions,
+			Reactions: reactionsString,
 		})
 	}
 
@@ -466,7 +457,7 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 			Channel:   fmt.Sprintf("#%s", msg.Channel.Name),
 			ThreadTs:  threadTs,
 			Time:      timestamp,
-			Reactions: nil, // Not available in search results
+			Reactions: "", // Not available in search results
 		})
 	}
 
