@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -46,18 +45,16 @@ type Reaction struct {
 }
 
 type Message struct {
-	MsgID       string     `json:"msgID"`
-	ClientMsgID string     `json:"clientMsgID,omitempty"`
-	UserID      string     `json:"userID"`
-	UserName    string     `json:"userUser"`
-	RealName    string     `json:"realName"`
-	Channel     string     `json:"channelID"`
-	ThreadTs    string     `json:"ThreadTs"`
-	Text        string     `json:"text"`
-	Time        string     `json:"time"`
-	Reactions   []Reaction `json:"reactions,omitempty"`
-	Blocks      string     `json:"blocks,omitempty"`
-	Cursor      string     `json:"cursor"`
+	MsgID     string     `json:"msgID"`
+	UserID    string     `json:"userID"`
+	UserName  string     `json:"userUser"`
+	RealName  string     `json:"realName"`
+	Channel   string     `json:"channelID"`
+	ThreadTs  string     `json:"ThreadTs"`
+	Text      string     `json:"text"`
+	Time      string     `json:"time"`
+	Reactions []Reaction `json:"reactions,omitempty"`
+	Cursor    string     `json:"cursor"`
 }
 
 type User struct {
@@ -410,26 +407,16 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 			})
 		}
 
-		// Convert blocks to JSON string for CSV compatibility
-		var blocksJSON string
-		if len(msg.Blocks.BlockSet) > 0 {
-			if blocksBytes, err := json.Marshal(msg.Blocks.BlockSet); err == nil {
-				blocksJSON = string(blocksBytes)
-			}
-		}
-
 		messages = append(messages, Message{
-			MsgID:       msg.Timestamp,
-			ClientMsgID: msg.ClientMsgID,
-			UserID:      msg.User,
-			UserName:    userName,
-			RealName:    realName,
-			Text:        text.ProcessText(msgText),
-			Channel:     channel,
-			ThreadTs:    msg.ThreadTimestamp,
-			Time:        timestamp,
-			Reactions:   reactions,
-			Blocks:      blocksJSON,
+			MsgID:     msg.Timestamp,
+			UserID:    msg.User,
+			UserName:  userName,
+			RealName:  realName,
+			Text:      text.ProcessText(msgText),
+			Channel:   channel,
+			ThreadTs:  msg.ThreadTimestamp,
+			Time:      timestamp,
+			Reactions: reactions,
 		})
 	}
 
@@ -468,20 +455,18 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 
 		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
 
-		// Note: Search messages don't typically have reactions/blocks/client_msg_id in the API response
+		// Note: Search messages don't typically have reactions in the API response
 		// but we include empty values for consistency with the Message struct
 		messages = append(messages, Message{
-			MsgID:       msg.Timestamp,
-			ClientMsgID: "", // Not available in search results
-			UserID:      msg.User,
-			UserName:    userName,
-			RealName:    realName,
-			Text:        text.ProcessText(msgText),
-			Channel:     fmt.Sprintf("#%s", msg.Channel.Name),
-			ThreadTs:    threadTs,
-			Time:        timestamp,
-			Reactions:   nil, // Not available in search results
-			Blocks:      "",  // Not available in search results
+			MsgID:     msg.Timestamp,
+			UserID:    msg.User,
+			UserName:  userName,
+			RealName:  realName,
+			Text:      text.ProcessText(msgText),
+			Channel:   fmt.Sprintf("#%s", msg.Channel.Name),
+			ThreadTs:  threadTs,
+			Time:      timestamp,
+			Reactions: nil, // Not available in search results
 		})
 	}
 
