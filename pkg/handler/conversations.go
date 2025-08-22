@@ -391,7 +391,6 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 
 		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
 
-		// Convert reactions to flat pipe-separated format: emoji:count|emoji:count
 		var reactionParts []string
 		for _, r := range msg.Reactions {
 			reactionParts = append(reactionParts, fmt.Sprintf("%s:%d", r.Name, r.Count))
@@ -446,8 +445,6 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 
 		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
 
-		// Note: Search messages don't typically have reactions in the API response
-		// but we include empty values for consistency with the Message struct
 		messages = append(messages, Message{
 			MsgID:     msg.Timestamp,
 			UserID:    msg.User,
@@ -457,7 +454,7 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 			Channel:   fmt.Sprintf("#%s", msg.Channel.Name),
 			ThreadTs:  threadTs,
 			Time:      timestamp,
-			Reactions: "", // Not available in search results
+			Reactions: "",
 		})
 	}
 
