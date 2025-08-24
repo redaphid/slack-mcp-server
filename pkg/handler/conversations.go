@@ -39,15 +39,16 @@ var validFilterKeys = map[string]struct{}{
 }
 
 type Message struct {
-	MsgID    string `json:"msgID"`
-	UserID   string `json:"userID"`
-	UserName string `json:"userUser"`
-	RealName string `json:"realName"`
-	Channel  string `json:"channelID"`
-	ThreadTs string `json:"ThreadTs"`
-	Text     string `json:"text"`
-	Time     string `json:"time"`
-	Cursor   string `json:"cursor"`
+	MsgID     string `json:"msgID"`
+	UserID    string `json:"userID"`
+	UserName  string `json:"userUser"`
+	RealName  string `json:"realName"`
+	Channel   string `json:"channelID"`
+	ThreadTs  string `json:"ThreadTs"`
+	Text      string `json:"text"`
+	Time      string `json:"time"`
+	Reactions string `json:"reactions,omitempty"`
+	Cursor    string `json:"cursor"`
 }
 
 type User struct {
@@ -390,15 +391,22 @@ func (ch *ConversationsHandler) convertMessagesFromHistory(slackMessages []slack
 
 		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
 
+		var reactionParts []string
+		for _, r := range msg.Reactions {
+			reactionParts = append(reactionParts, fmt.Sprintf("%s:%d", r.Name, r.Count))
+		}
+		reactionsString := strings.Join(reactionParts, "|")
+
 		messages = append(messages, Message{
-			MsgID:    msg.Timestamp,
-			UserID:   msg.User,
-			UserName: userName,
-			RealName: realName,
-			Text:     text.ProcessText(msgText),
-			Channel:  channel,
-			ThreadTs: msg.ThreadTimestamp,
-			Time:     timestamp,
+			MsgID:     msg.Timestamp,
+			UserID:    msg.User,
+			UserName:  userName,
+			RealName:  realName,
+			Text:      text.ProcessText(msgText),
+			Channel:   channel,
+			ThreadTs:  msg.ThreadTimestamp,
+			Time:      timestamp,
+			Reactions: reactionsString,
 		})
 	}
 
@@ -438,14 +446,15 @@ func (ch *ConversationsHandler) convertMessagesFromSearch(slackMessages []slack.
 		msgText := msg.Text + text.AttachmentsTo2CSV(msg.Text, msg.Attachments)
 
 		messages = append(messages, Message{
-			MsgID:    msg.Timestamp,
-			UserID:   msg.User,
-			UserName: userName,
-			RealName: realName,
-			Text:     text.ProcessText(msgText),
-			Channel:  fmt.Sprintf("#%s", msg.Channel.Name),
-			ThreadTs: threadTs,
-			Time:     timestamp,
+			MsgID:     msg.Timestamp,
+			UserID:    msg.User,
+			UserName:  userName,
+			RealName:  realName,
+			Text:      text.ProcessText(msgText),
+			Channel:   fmt.Sprintf("#%s", msg.Channel.Name),
+			ThreadTs:  threadTs,
+			Time:      timestamp,
+			Reactions: "",
 		})
 	}
 
