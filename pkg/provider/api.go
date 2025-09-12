@@ -549,13 +549,9 @@ func (ap *ApiProvider) GetSlackConnect(ctx context.Context) ([]slack.User, error
 	return res, nil
 }
 
-func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) []Channel {
-	if len(channelTypes) == 0 {
-		channelTypes = AllChanTypes
-	}
-
+func (ap *ApiProvider) GetChannelsType(ctx context.Context, channelType string) []Channel {
 	params := &slack.GetConversationsParameters{
-		Types:           AllChanTypes,
+		Types:           []string{channelType},
 		Limit:           999,
 		ExcludeArchived: true,
 	}
@@ -575,6 +571,10 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 		}
 
 		channels, nextcur, err = ap.client.GetConversationsContext(ctx, params)
+		ap.logger.Debug("Fetched channels for ",
+			zap.String("channelType", channelType),
+			zap.Int("count", len(channels)),
+		)
 		if err != nil {
 			ap.logger.Error("Failed to fetch channels", zap.Error(err))
 			break
@@ -599,16 +599,29 @@ func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) [
 			chans = append(chans, ch)
 		}
 
-		for _, ch := range chans {
-			ap.channels[ch.ID] = ch
-			ap.channelsInv[ch.Name] = ch.ID
-		}
-
 		if nextcur == "" {
 			break
 		}
 
 		params.Cursor = nextcur
+	}
+	return chans
+}
+
+func (ap *ApiProvider) GetChannels(ctx context.Context, channelTypes []string) []Channel {
+	if len(channelTypes) == 0 {
+		channelTypes = AllChanTypes
+	}
+
+	var chans []Channel
+	for _, t := range AllChanTypes {
+		var typeChannels = ap.GetChannelsType(ctx, t)
+		chans = append(chans, typeChannels...)
+	}
+
+	for _, ch := range chans {
+		ap.channels[ch.ID] = ch
+		ap.channelsInv[ch.Name] = ch.ID
 	}
 
 	var res []Channel
