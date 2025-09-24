@@ -58,12 +58,12 @@ type SlackAPI interface {
 	PostMessageContext(ctx context.Context, channel string, options ...slack.MsgOption) (string, string, error)
 	MarkConversationContext(ctx context.Context, channel, ts string) error
 
-	// Useed to get messages
+	// Used to get messages
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
 	SearchContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, *slack.SearchFiles, error)
 
-	// Useed to get channels list from both Slack and Enterprise Grid versions
+	// Used to get channels list from both Slack and Enterprise Grid versions
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) ([]slack.Channel, string, error)
 
 	// Edge API methods
