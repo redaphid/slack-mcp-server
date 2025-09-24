@@ -58,7 +58,7 @@ func SetupMCP(cfg MCPConfig) (*MCPConnection, error) {
 		"SLACK_MCP_HOST="+host,
 		"SLACK_MCP_PORT="+strconv.Itoa(port),
 		"SLACK_MCP_ADD_MESSAGE_TOOL=true",
-		"SLACK_MCP_SSE_API_KEY="+cfg.SSEKey,
+		"SLACK_MCP_API_KEY="+cfg.SSEKey,
 		"SLACK_MCP_USERS_CACHE=/tmp/users_cache.json",
 		"SLACK_MCP_CHANNELS_CACHE=/tmp/channels_cache_v3.json",
 	)

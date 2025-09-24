@@ -154,10 +154,10 @@ In case you would like to run it in `sse` mode, then you  should use `mcp-remote
         "mcp-remote",
         "https://x.y.z.q:3001/sse",
         "--header",
-        "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
+        "Authorization: Bearer ${SLACK_MCP_API_KEY}"
       ],
       "env": {
-        "SLACK_MCP_SSE_API_KEY": "my-$$e-$ecret"
+        "SLACK_MCP_API_KEY": "my-$$e-$ecret"
       }
     }
   }
@@ -177,10 +177,10 @@ In case you would like to run it in `sse` mode, then you  should use `mcp-remote
         "mcp-remote",
         "https://x.y.z.q:3001/sse",
         "--header",
-        "Authorization: Bearer ${SLACK_MCP_SSE_API_KEY}"
+        "Authorization: Bearer ${SLACK_MCP_API_KEY}"
       ],
       "env": {
-        "SLACK_MCP_SSE_API_KEY": "my-$$e-$ecret"
+        "SLACK_MCP_API_KEY": "my-$$e-$ecret"
       }
     }
   }
@@ -242,7 +242,7 @@ docker-compose up -d
 | `SLACK_MCP_XOXP_TOKEN`            | Yes*      | `nil`                     | User OAuth token (`xoxp-...`) — alternative to xoxc/xoxd                                                                                                                                                                                                                                  |
 | `SLACK_MCP_PORT`                  | No        | `13080`                   | Port for the MCP server to listen on                                                                                                                                                                                                                                                      |
 | `SLACK_MCP_HOST`                  | No        | `127.0.0.1`               | Host for the MCP server to listen on                                                                                                                                                                                                                                                      |
-| `SLACK_MCP_SSE_API_KEY`           | No        | `nil`                     | Bearer token for SSE transport                                                                                                                                                                                                                                                            |
+| `SLACK_MCP_API_KEY`           | No        | `nil`                     | Bearer token for SSE and HTTP transports                                                                                                                                                                                                                                                            |
 | `SLACK_MCP_PROXY`                 | No        | `nil`                     | Proxy URL for outgoing requests                                                                                                                                                                                                                                                           |
 | `SLACK_MCP_USER_AGENT`            | No        | `nil`                     | Custom User-Agent (for Enterprise Slack environments)                                                                                                                                                                                                                                     |
 | `SLACK_MCP_CUSTOM_TLS`            | No        | `nil`                     | Send custom TLS-handshake to Slack servers based on `SLACK_MCP_USER_AGENT` or default User-Agent. (for Enterprise Slack environments)                                                                                                                                                     |
