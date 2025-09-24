@@ -107,11 +107,11 @@ func IsAuthenticated(ctx context.Context, transport string, logger *zap.Logger) 
 	case "stdio":
 		return true, nil
 
-	case "sse":
+	case "sse", "http":
 		authenticated, err := validateToken(ctx, logger)
 
 		if err != nil {
-			logger.Error("SSE authentication error",
+			logger.Error("HTTP/SSE authentication error",
 				zap.String("context", "http"),
 				zap.Error(err),
 			)
@@ -119,7 +119,7 @@ func IsAuthenticated(ctx context.Context, transport string, logger *zap.Logger) 
 		}
 
 		if !authenticated {
-			logger.Warn("SSE unauthorized request",
+			logger.Warn("HTTP/SSE unauthorized request",
 				zap.String("context", "http"),
 			)
 			return false, fmt.Errorf("unauthorized request")

@@ -221,6 +221,24 @@ func (s *MCPServer) ServeSSE(addr string) *server.SSEServer {
 	)
 }
 
+func (s *MCPServer) ServeHTTP(addr string) *server.StreamableHTTPServer {
+	s.logger.Info("Creating HTTP server",
+		zap.String("context", "console"),
+		zap.String("version", version.Version),
+		zap.String("build_time", version.BuildTime),
+		zap.String("commit_hash", version.CommitHash),
+		zap.String("address", addr),
+	)
+	return server.NewStreamableHTTPServer(s.server,
+		server.WithEndpointPath("/mcp"),
+		server.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
+			ctx = auth.AuthFromRequest(s.logger)(ctx, r)
+
+			return ctx
+		}),
+	)
+}
+
 func (s *MCPServer) ServeStdio() error {
 	s.logger.Info("Starting STDIO server",
 		zap.String("version", version.Version),
