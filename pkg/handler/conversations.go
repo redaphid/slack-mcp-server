@@ -713,13 +713,14 @@ func (ch *ConversationsHandler) paramFormatChannel(raw string) (string, error) {
 	cms := ch.apiProvider.ProvideChannelsMaps()
 	if strings.HasPrefix(raw, "#") {
 		if id, ok := cms.ChannelsInv[raw]; ok {
-			return "#" + cms.Channels[id].Name, nil
+			return cms.Channels[id].Name, nil
 		}
 		return "", fmt.Errorf("channel %q not found", raw)
 	}
-	if strings.HasPrefix(raw, "C") {
+	// Handle both C (standard channels) and G (private groups/channels) prefixes
+	if strings.HasPrefix(raw, "C") || strings.HasPrefix(raw, "G") {
 		if chn, ok := cms.Channels[raw]; ok {
-			return "#" + chn.Name, nil
+			return chn.Name, nil
 		}
 		return "", fmt.Errorf("channel %q not found", raw)
 	}
