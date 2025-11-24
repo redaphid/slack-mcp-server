@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Script to set up cron job for Slack sync
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+SYNC_BIN="$PROJECT_DIR/slack-sync"
+
+# Check if binary exists
+if [ ! -f "$SYNC_BIN" ]; then
+    echo "Error: slack-sync binary not found at $SYNC_BIN"
+    echo "Run: go build -o slack-sync ./cmd/sync"
+    exit 1
+fi
+
+# Create cron entry (runs every 10 minutes)
+CRON_ENTRY="*/10 * * * * cd $PROJECT_DIR && $SYNC_BIN >> /tmp/slack-sync.log 2>&1"
+
+# Check if cron entry already exists
+if crontab -l 2>/dev/null | grep -q "$SYNC_BIN"; then
+    echo "Cron job already exists for slack-sync"
+    echo "Current crontab:"
+    crontab -l | grep "$SYNC_BIN"
+    exit 0
+fi
+
+# Add to crontab
+(crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
+
+echo "Cron job added successfully!"
+echo "The sync will run every 10 minutes and log to /tmp/slack-sync.log"
+echo ""
+echo "To view logs:"
+echo "  tail -f /tmp/slack-sync.log"
+echo ""
+echo "To remove the cron job:"
+echo "  crontab -e"
+echo "  (then delete the line containing slack-sync)"
+echo ""
+echo "Current crontab:"
+crontab -l | grep "$SYNC_BIN"

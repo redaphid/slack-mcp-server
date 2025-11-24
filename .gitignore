@@ -13,3 +13,18 @@
 /npm/slack-mcp-server/LICENSE
 /npm/slack-mcp-server/README.md
 docker-compose.release.yml
+
+# Exporter
+slack-exporter
+slack-backfill
+slack-filter
+slack-viewer
+slack-sync
+*.db
+slack_export.db
+backfill_payloads.jsonl
+slackdump*
+schema.sql
+channels*.txt
+users.txt
+.mcp.json

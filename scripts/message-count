@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Simple script to check Slack export progress
+
+DB_PATH="${1:-slack_export.db}"
+
+if [ ! -f "$DB_PATH" ]; then
+    echo "Error: Database not found at $DB_PATH"
+    exit 1
+fi
+
+sqlite3 "$DB_PATH" "SELECT
+    'Messages: ' || COUNT(*) || CHAR(10) ||
+    'Users: ' || (SELECT COUNT(*) FROM slack_users) || CHAR(10) ||
+    'Channels: ' || (SELECT COUNT(*) FROM slack_channels)
+FROM slack_messages;"

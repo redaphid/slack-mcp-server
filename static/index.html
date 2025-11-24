@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slack Data Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #0a0a0a;
+            border-right: 2px solid;
+            border-image: linear-gradient(180deg, #ff0080, #ff8c00, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff) 1;
+            overflow-y: auto;
+            animation: borderGlow 3s infinite;
+        }
+
+        @keyframes borderGlow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.5); }
+        }
+
+        .header {
+            padding: 20px;
+            background: linear-gradient(90deg, #ff0080, #ff8c00, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff);
+            background-size: 200% 100%;
+            animation: rainbow 3s linear infinite;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #000;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes rainbow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        .stats {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            font-size: 12px;
+        }
+
+        .stat-item {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .channel-list {
+            padding: 10px;
+        }
+
+        .channel-item {
+            padding: 10px;
+            margin: 5px 0;
+            cursor: pointer;
+            border: 1px solid #222;
+            transition: all 0.3s;
+        }
+
+        .channel-item:hover {
+            background: #1a1a1a;
+            border-color: #0ff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .channel-item.active {
+            background: #0a0a0a;
+            border: 1px solid;
+            border-image: linear-gradient(90deg, #ff0080, #0080ff) 1;
+        }
+
+        .channel-name {
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        .channel-desc {
+            font-size: 11px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 20px;
+            background: #0a0a0a;
+            border-bottom: 2px solid #333;
+        }
+
+        .content-title {
+            font-size: 20px;
+            background: linear-gradient(90deg, #ff0080, #ffff00, #0080ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin: 15px 0;
+            padding: 15px;
+            background: #0a0a0a;
+            border-left: 3px solid #0ff;
+            transition: all 0.3s;
+        }
+
+        .message:hover {
+            background: #1a1a1a;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .message-user {
+            color: #ff0080;
+            font-weight: bold;
+        }
+
+        .message-time {
+            color: #666;
+            font-size: 11px;
+        }
+
+        .message-text {
+            color: #0f0;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 100px 20px;
+            color: #666;
+        }
+
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #ff0080, #0080ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #000;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #ff0080, #0080ff);
+            border-radius: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #0ff;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="header">
+                SLACK DATA VIEWER
+            </div>
+            <div class="stats" id="stats">
+                <div class="stat-item">
+                    <span class="stat-label">CHANNELS:</span>
+                    <span class="stat-value" id="channel-count">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">MESSAGES:</span>
+                    <span class="stat-value" id="message-count">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">USERS:</span>
+                    <span class="stat-value" id="user-count">-</span>
+                </div>
+            </div>
+            <div class="channel-list" id="channel-list">
+                <div class="loading">LOADING CHANNELS...</div>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="content-header">
+                <div class="content-title" id="content-title">Select a channel</div>
+            </div>
+            <div class="messages" id="messages">
+                <div class="empty-state">
+                    <h2>◢◤ SELECT A CHANNEL ◢◤</h2>
+                    <p>Choose a channel from the sidebar to view messages</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let users = {};
+
+        async function loadStats() {
+            const res = await fetch(`${API_BASE}/api/stats`);
+            const stats = await res.json();
+            document.getElementById('channel-count').textContent = stats.channels.toLocaleString();
+            document.getElementById('message-count').textContent = stats.messages.toLocaleString();
+            document.getElementById('user-count').textContent = stats.users.toLocaleString();
+        }
+
+        async function loadUsers() {
+            const res = await fetch(`${API_BASE}/api/users`);
+            const userList = await res.json();
+            userList.forEach(user => {
+                users[user.id] = user;
+            });
+        }
+
+        async function loadChannels() {
+            const res = await fetch(`${API_BASE}/api/channels`);
+            const channels = await res.json();
+
+            const channelList = document.getElementById('channel-list');
+            channelList.innerHTML = '';
+
+            channels.forEach(channel => {
+                const item = document.createElement('div');
+                item.className = 'channel-item';
+                item.innerHTML = `
+                    <div class="channel-name">${channel.name}</div>
+                    <div class="channel-desc">${channel.description || channel.type}</div>
+                `;
+                item.onclick = (e) => loadMessages(channel.id, channel.name, e.currentTarget);
+                channelList.appendChild(item);
+            });
+        }
+
+        async function loadMessages(channelId, channelName, element) {
+            console.log('loadMessages called:', channelId, channelName);
+            document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            document.getElementById('content-title').textContent = `# ${channelName}`;
+
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = '<div class="loading">LOADING MESSAGES...</div>';
+
+            const res = await fetch(`${API_BASE}/api/messages?channel_id=${channelId}`);
+            const messages = await res.json();
+            console.log('Fetched messages:', messages.length, 'Array?', Array.isArray(messages));
+
+            messagesDiv.innerHTML = '';
+
+            if (messages.length === 0) {
+                messagesDiv.innerHTML = '<div class="empty-state"><h2>NO MESSAGES</h2></div>';
+                return;
+            }
+
+            messages.reverse().forEach(msg => {
+                const user = users[msg.user_id] || { name: msg.user_id, display_name: 'Unknown' };
+                const userName = user.display_name || user.name;
+                const timestamp = new Date(msg.timestamp * 1000).toLocaleString();
+
+                const messageEl = document.createElement('div');
+                messageEl.className = 'message';
+                messageEl.innerHTML = `
+                    <div class="message-header">
+                        <span class="message-user">${userName}</span>
+                        <span class="message-time">${timestamp}</span>
+                    </div>
+                    <div class="message-text">${msg.text || '[no text]'}</div>
+                `;
+                messagesDiv.appendChild(messageEl);
+            });
+
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function init() {
+            await Promise.all([
+                loadStats(),
+                loadUsers(),
+                loadChannels()
+            ]);
+        }
+
+        init();
+    </script>
+</body>
+</html>

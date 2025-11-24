@@ -1,0 +1,46 @@
+#!/bin/bash
+
+DB_PATH="${1:-$HOME/THE_SINK/slack/sibi.slack.db}"
+
+if [ ! -f "$DB_PATH" ]; then
+    echo "Error: Database not found at $DB_PATH"
+    exit 1
+fi
+
+echo "=== Export Progress Status ==="
+echo ""
+echo "Database: $DB_PATH"
+echo ""
+
+sqlite3 "$DB_PATH" <<EOF
+.mode column
+.headers on
+.width 35 12 10 20
+
+SELECT
+    channel_name,
+    status,
+    COALESCE(message_count, 0) as messages,
+    COALESCE(completed_at, 'In Progress') as completed
+FROM export_progress
+ORDER BY
+    CASE status
+        WHEN 'in_progress' THEN 1
+        WHEN 'failed' THEN 2
+        WHEN 'completed' THEN 3
+        ELSE 4
+    END,
+    channel_name;
+
+SELECT '';
+SELECT 'Summary:';
+SELECT
+    '  Completed: ' || COUNT(CASE WHEN status = 'completed' THEN 1 END) ||
+    ', In Progress: ' || COUNT(CASE WHEN status = 'in_progress' THEN 1 END) ||
+    ', Failed: ' || COUNT(CASE WHEN status = 'failed' THEN 1 END) ||
+    ', Pending: ' || COUNT(CASE WHEN status = 'pending' THEN 1 END)
+FROM export_progress;
+
+SELECT '';
+SELECT 'Total Messages: ' || COUNT(*) FROM slack_messages;
+EOF
